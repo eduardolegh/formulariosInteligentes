@@ -2,6 +2,21 @@
 
 Plataforma web para crear, configurar y automatizar formularios empresariales mediante lenguaje natural, reglas de negocio, integraciones REST y dashboards.
 
+## Desarrollo local
+
+```bash
+npm install
+npm run dev
+```
+
+Comandos disponibles:
+
+```bash
+npm run build
+npm run lint
+npm run preview
+```
+
 ## Documentación
 
 - [Planteamiento final del proyecto](docs/PLANTEAMIENTO.md)
@@ -10,4 +25,4 @@ Plataforma web para crear, configurar y automatizar formularios empresariales me
 
 ## Estado actual
 
-Repositorio inicial. La primera iteración se enfocará en autenticación, panel administrativo, usuarios, roles y permisos con React y Supabase.
+Primera iteración de la aplicación React: shell administrativo, navegación base y pantallas placeholder para formularios, contextos, dashboards y usuarios. Supabase se conectará en la siguiente iteración.

@@ -22,7 +22,12 @@ export function UsersPage() {
       supabase.from('profiles').select('id, full_name, is_active, created_at, user_roles(role:roles(id, key, name))').order('created_at', { ascending: false }),
       supabase.from('roles').select('id, key, name').order('name'),
     ])
-    if (profileError || roleError) setError('Ejecuta primero la migración de roles y permisos en Supabase.')
+    if (profileError || roleError) {
+      const detail = profileError?.message ?? roleError?.message ?? 'Error desconocido'
+      setError(`Supabase no pudo cargar los datos: ${detail}`)
+    } else {
+      setError('')
+    }
     setProfiles((profileData as Profile[] | null) ?? [])
     setRoles((roleData as Role[] | null) ?? [])
     setIsLoading(false)

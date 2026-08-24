@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
+import { AccessDeniedPage, PermissionRoute } from './auth/PermissionRoute'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { UsersPage } from './pages/UsersPage'
@@ -11,14 +12,15 @@ type NavItem = {
   label: string
   to: string
   icon: string
+  permission?: string
 }
 
 const navItems: NavItem[] = [
   { label: 'Resumen', to: '/', icon: '⌂' },
-  { label: 'Formularios', to: '/formularios', icon: '▤' },
-  { label: 'Contextos', to: '/contextos', icon: '◈' },
-  { label: 'Dashboards', to: '/dashboards', icon: '▥' },
-  { label: 'Usuarios y roles', to: '/usuarios', icon: '♙' },
+  { label: 'Formularios', to: '/formularios', icon: '▤', permission: 'forms.view' },
+  { label: 'Contextos', to: '/contextos', icon: '◈', permission: 'contexts.create' },
+  { label: 'Dashboards', to: '/dashboards', icon: '▥', permission: 'dashboards.view' },
+  { label: 'Usuarios y roles', to: '/usuarios', icon: '♙', permission: 'users.manage' },
 ]
 
 function App() {
@@ -29,10 +31,11 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route index element={<OverviewPage />} />
-            <Route path="formularios" element={<PlaceholderPage title="Formularios" description="Aquí podrás crear y administrar los formularios de la plataforma." />} />
-            <Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} />
-            <Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} />
-            <Route path="usuarios" element={<UsersPage />} />
+            <Route path="sin-acceso" element={<AccessDeniedPage />} />
+            <Route element={<PermissionRoute permission="forms.view" />}><Route path="formularios" element={<PlaceholderPage title="Formularios" description="Aquí podrás crear y administrar los formularios de la plataforma." />} /></Route>
+            <Route element={<PermissionRoute permission="contexts.create" />}><Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} /></Route>
+            <Route element={<PermissionRoute permission="dashboards.view" />}><Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} /></Route>
+            <Route element={<PermissionRoute permission="users.manage" />}><Route path="usuarios" element={<UsersPage />} /></Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -43,7 +46,7 @@ function App() {
 
 function AdminLayout() {
   const navigate = useNavigate()
-  const { session } = useAuth()
+  const { session, hasPermission } = useAuth()
   const [connectionState, setConnectionState] = useState<'checking' | 'connected' | 'error'>('checking')
 
   useEffect(() => {
@@ -77,7 +80,7 @@ function AdminLayout() {
 
         <div className="workspace-label">ESPACIO DE TRABAJO</div>
         <nav className="main-nav" aria-label="Navegación principal">
-          {navItems.map((item) => (
+          {navItems.filter((item) => !item.permission || hasPermission(item.permission)).map((item) => (
             <NavLink
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
               end={item.to === '/'}

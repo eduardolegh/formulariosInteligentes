@@ -61,7 +61,7 @@ export function UsersPage() {
     setIsSubmitting(true)
     const { error: functionError } = await supabase.functions.invoke('admin-create-user', { body: form })
     if (functionError) {
-      setError('No se pudo crear el usuario. Verifica que la Edge Function esté desplegada y que tengas permiso de administrador.')
+      setError(`No se pudo crear el usuario: ${functionError.message}`)
     } else {
       setMessage('Usuario creado correctamente.')
       setForm(initialForm)

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 
 type Role = { id: number; key: string; name: string }
 type Profile = { id: string; full_name: string; is_active: boolean; created_at: string; user_roles?: Array<{ role: Role | null }> }
+type UserRole = { user_id: string; role: Role | null }
 
 const initialForm = { email: '', password: '', fullName: '', roleKey: 'form_designer' }
 
@@ -18,17 +19,33 @@ export function UsersPage() {
 
   async function loadUsers() {
     setIsLoading(true)
-    const [{ data: profileData, error: profileError }, { data: roleData, error: roleError }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, is_active, created_at, user_roles(role:roles(id, key, name))').order('created_at', { ascending: false }),
+    const [
+      { data: profileData, error: profileError },
+      { data: roleData, error: roleError },
+      { data: userRoleData, error: userRoleError },
+    ] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, is_active, created_at').order('created_at', { ascending: false }),
       supabase.from('roles').select('id, key, name').order('name'),
+      supabase.from('user_roles').select('user_id, role:roles(id, key, name)'),
     ])
-    if (profileError || roleError) {
-      const detail = profileError?.message ?? roleError?.message ?? 'Error desconocido'
+    if (profileError || roleError || userRoleError) {
+      const detail = profileError?.message ?? roleError?.message ?? userRoleError?.message ?? 'Error desconocido'
       setError(`Supabase no pudo cargar los datos: ${detail}`)
     } else {
       setError('')
     }
-    setProfiles((profileData as Profile[] | null) ?? [])
+    const assignments = (userRoleData as UserRole[] | null) ?? []
+    const assignmentsByUser = new Map<string, Array<{ role: Role | null }>>()
+    assignments.forEach((assignment) => {
+      const current = assignmentsByUser.get(assignment.user_id) ?? []
+      current.push({ role: assignment.role })
+      assignmentsByUser.set(assignment.user_id, current)
+    })
+    const profilesWithRoles = ((profileData as Profile[] | null) ?? []).map((profile) => ({
+      ...profile,
+      user_roles: assignmentsByUser.get(profile.id) ?? [],
+    }))
+    setProfiles(profilesWithRoles)
     setRoles((roleData as Role[] | null) ?? [])
     setIsLoading(false)
   }

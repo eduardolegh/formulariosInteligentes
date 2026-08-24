@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { useAuth } from './auth/AuthContext'
+import { ProtectedRoute } from './auth/ProtectedRoute'
+import { LoginPage } from './pages/LoginPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -21,12 +24,15 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<AdminLayout />}>
-          <Route index element={<OverviewPage />} />
-          <Route path="formularios" element={<PlaceholderPage title="Formularios" description="Aquí podrás crear y administrar los formularios de la plataforma." />} />
-          <Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} />
-          <Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} />
-          <Route path="usuarios" element={<PlaceholderPage title="Usuarios y roles" description="Administra usuarios y sus permisos de acceso." />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AdminLayout />}>
+            <Route index element={<OverviewPage />} />
+            <Route path="formularios" element={<PlaceholderPage title="Formularios" description="Aquí podrás crear y administrar los formularios de la plataforma." />} />
+            <Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} />
+            <Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} />
+            <Route path="usuarios" element={<PlaceholderPage title="Usuarios y roles" description="Administra usuarios y sus permisos de acceso." />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -35,6 +41,8 @@ function App() {
 }
 
 function AdminLayout() {
+  const navigate = useNavigate()
+  const { session } = useAuth()
   const [connectionState, setConnectionState] = useState<'checking' | 'connected' | 'error'>('checking')
 
   useEffect(() => {
@@ -85,8 +93,8 @@ function AdminLayout() {
           <div className={`connection-status ${connectionState}`}><span /> {connectionLabel}</div>
           <div className="profile-chip">
             <div className="avatar">AD</div>
-            <div><strong>Administrador</strong><small>Cuenta principal</small></div>
-            <span className="more">···</span>
+            <div><strong>{session?.user.email ?? 'Administrador'}</strong><small>Sesión activa</small></div>
+            <button className="signout-button" onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace: true }) }} type="button">Salir</button>
           </div>
         </div>
       </aside>

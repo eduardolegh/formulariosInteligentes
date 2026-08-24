@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 
 type Role = { id: number; key: string; name: string }
-type Profile = { id: string; full_name: string; is_active: boolean; created_at: string; user_roles?: Array<{ role: Role | null }> }
+type Profile = { id: string; email: string | null; full_name: string; is_active: boolean; created_at: string; user_roles?: Array<{ role: Role | null }> }
 type UserRole = { user_id: string; role: Role | null }
 
 const initialForm = { email: '', password: '', fullName: '', roleKey: 'form_designer' }
@@ -24,7 +24,7 @@ export function UsersPage() {
       { data: roleData, error: roleError },
       { data: userRoleData, error: userRoleError },
     ] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, is_active, created_at').order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, email, full_name, is_active, created_at').order('created_at', { ascending: false }),
       supabase.from('roles').select('id, key, name').order('name'),
       supabase.from('user_roles').select('user_id, role:roles(id, key, name)'),
     ])
@@ -77,7 +77,7 @@ export function UsersPage() {
       {message && <div className="success-banner">{message}</div>}
       {error && <div className="error-banner">{error}</div>}
       {isCreateOpen && <form className="user-form panel" onSubmit={handleCreate}><div className="form-grid"><label>Nombre completo<input required value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} /></label><label>Correo electrónico<input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label><label>Contraseña temporal<input required minLength={6} type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label><label>Rol<select value={form.roleKey} onChange={(event) => setForm({ ...form, roleKey: event.target.value })}>{roles.map((role) => <option key={role.key} value={role.key}>{role.name}</option>)}</select></label></div><div className="form-actions"><button className="secondary-button" onClick={() => setIsCreateOpen(false)} type="button">Cancelar</button><button className="primary-button" disabled={isSubmitting} type="submit">{isSubmitting ? 'Creando…' : 'Crear usuario'}</button></div></form>}
-      <div className="panel users-table-panel"><div className="panel-heading"><div><p className="eyebrow">DIRECTORIO</p><h2>Usuarios registrados</h2></div><span className="table-count">{profiles.length} usuarios</span></div>{isLoading ? <div className="table-empty">Cargando usuarios…</div> : profiles.length === 0 ? <div className="table-empty">No hay perfiles. Crea el primer usuario desde Supabase Auth o mediante la función administrativa.</div> : <div className="users-table"><div className="table-row table-header"><span>Usuario</span><span>Rol</span><span>Estado</span><span>Alta</span></div>{profiles.map((profile) => <div className="table-row" key={profile.id}><span><strong>{profile.full_name || 'Sin nombre'}</strong><small>{profile.id}</small></span><span>{profile.user_roles?.map((assignment) => assignment.role?.name).filter(Boolean).join(', ') || 'Sin rol'}</span><span><em className={profile.is_active ? 'status-active' : 'status-inactive'}>{profile.is_active ? 'Activo' : 'Inactivo'}</em></span><span>{new Date(profile.created_at).toLocaleDateString('es-GT')}</span></div>)}</div>}</div>
+      <div className="panel users-table-panel"><div className="panel-heading"><div><p className="eyebrow">DIRECTORIO</p><h2>Usuarios registrados</h2></div><span className="table-count">{profiles.length} usuarios</span></div>{isLoading ? <div className="table-empty">Cargando usuarios…</div> : profiles.length === 0 ? <div className="table-empty">No hay perfiles. Crea el primer usuario desde Supabase Auth o mediante la función administrativa.</div> : <div className="users-table"><div className="table-row table-header"><span>Usuario</span><span>Rol</span><span>Estado</span><span>Alta</span></div>{profiles.map((profile) => <div className="table-row" key={profile.id}><span><strong>{profile.full_name || 'Sin nombre'}</strong><small>{profile.email || 'Correo no disponible'}</small></span><span>{profile.user_roles?.map((assignment) => assignment.role?.name).filter(Boolean).join(', ') || 'Sin rol'}</span><span><em className={profile.is_active ? 'status-active' : 'status-inactive'}>{profile.is_active ? 'Activo' : 'Inactivo'}</em></span><span>{new Date(profile.created_at).toLocaleDateString('es-GT')}</span></div>)}</div>}</div>
     </section>
   )
 }

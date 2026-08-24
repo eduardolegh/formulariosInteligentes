@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } 
 import { useAuth } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
+import { UsersPage } from './pages/UsersPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -31,7 +32,7 @@ function App() {
             <Route path="formularios" element={<PlaceholderPage title="Formularios" description="Aquí podrás crear y administrar los formularios de la plataforma." />} />
             <Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} />
             <Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} />
-            <Route path="usuarios" element={<PlaceholderPage title="Usuarios y roles" description="Administra usuarios y sus permisos de acceso." />} />
+            <Route path="usuarios" element={<UsersPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

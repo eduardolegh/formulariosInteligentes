@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom'
+import { supabase } from './lib/supabase'
 import './App.css'
 
 type NavItem = {
@@ -33,6 +35,26 @@ function App() {
 }
 
 function AdminLayout() {
+  const [connectionState, setConnectionState] = useState<'checking' | 'connected' | 'error'>('checking')
+
+  useEffect(() => {
+    let isMounted = true
+
+    supabase.auth.getSession().then(({ error }) => {
+      if (isMounted) setConnectionState(error ? 'error' : 'connected')
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const connectionLabel = {
+    checking: 'Comprobando conexión…',
+    connected: 'Supabase conectado',
+    error: 'Error de conexión con Supabase',
+  }[connectionState]
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -60,7 +82,7 @@ function AdminLayout() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="connection-status"><span /> Supabase pendiente de conectar</div>
+          <div className={`connection-status ${connectionState}`}><span /> {connectionLabel}</div>
           <div className="profile-chip">
             <div className="avatar">AD</div>
             <div><strong>Administrador</strong><small>Cuenta principal</small></div>

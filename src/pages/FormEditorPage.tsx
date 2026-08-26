@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 
 type FormRecord = { id: string; name: string; description: string; status: 'draft' | 'published' | 'archived'; visibility: 'public' | 'private'; share_token: string }
 type Section = { id: string; title: string; description: string; position: number }
-type Field = { id: string; section_id: string; field_key: string; label: string; field_type: string; is_required: boolean; position: number }
+type Field = { id: string; section_id: string; field_key: string; label: string; field_type: string; is_required: boolean; position: number; config?: { options?: string[] } }
 
 const fieldTypes = [
   ['text', 'Texto corto'], ['textarea', 'Texto largo'], ['email', 'Correo electrónico'], ['phone', 'Teléfono'],
@@ -19,6 +19,7 @@ export function FormEditorPage() {
   const [sectionTitle, setSectionTitle] = useState('')
   const [fieldLabel, setFieldLabel] = useState('')
   const [fieldType, setFieldType] = useState('text')
+  const [fieldOptions, setFieldOptions] = useState('')
   const [selectedSection, setSelectedSection] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -36,7 +37,7 @@ export function FormEditorPage() {
       return
     }
     const nextSections = (sectionData as Section[] | null) ?? []
-    const { data: fieldData, error: fieldError } = nextSections.length ? await supabase.from('form_fields').select('id, section_id, field_key, label, field_type, is_required, position').in('section_id', nextSections.map((section) => section.id)).order('position') : { data: [], error: null }
+    const { data: fieldData, error: fieldError } = nextSections.length ? await supabase.from('form_fields').select('id, section_id, field_key, label, field_type, is_required, position, config').in('section_id', nextSections.map((section) => section.id)).order('position') : { data: [], error: null }
     if (fieldError) setError(`No se pudieron cargar las preguntas: ${fieldError.message}`)
     setForm(formData as FormRecord)
     setSections(nextSections)
@@ -63,11 +64,16 @@ export function FormEditorPage() {
     event.preventDefault()
     if (!selectedSection || !fieldLabel.trim()) return
     const sectionFields = fields.filter((field) => field.section_id === selectedSection)
-    const payload = { section_id: selectedSection, field_key: `${fieldType}_${Date.now()}`, label: fieldLabel.trim(), field_type: fieldType, position: sectionFields.length }
-    const { data, error: insertError } = await supabase.from('form_fields').insert(payload).select('id, section_id, field_key, label, field_type, is_required, position').single()
+    const optionText = fieldType === 'select' && !fieldOptions.trim() ? window.prompt('Escribe las opciones, separadas por coma', 'Opción 1, Opción 2') ?? '' : fieldOptions
+    const options = optionText.split(/[,\n]/).map((option) => option.trim()).filter(Boolean)
+    if (fieldType === 'select' && options.length < 2) { setError('Una lista debe tener al menos dos opciones, una por línea.'); return }
+    const config = fieldType === 'select' ? { options } : {}
+    const payload = { section_id: selectedSection, field_key: `${fieldType}_${Date.now()}`, label: fieldLabel.trim(), field_type: fieldType, config, position: sectionFields.length }
+    const { data, error: insertError } = await supabase.from('form_fields').insert(payload).select('id, section_id, field_key, label, field_type, is_required, position, config').single()
     if (insertError || !data) { setError(`No se pudo crear la pregunta: ${insertError?.message ?? 'respuesta vacía'}`); return }
     setFields([...fields, data as Field])
     setFieldLabel('')
+    setFieldOptions('')
   }
 
   async function togglePublish() {

@@ -20,6 +20,7 @@ npm run preview
 ## Documentación
 
 - [Planteamiento final del proyecto](docs/PLANTEAMIENTO.md)
+- [Documento de implementación](docs/IMPLEMENTACION.md)
 - [Diagramas](docs/diagramas/README.md)
 - [Decisiones técnicas](docs/decisiones/README.md)
 

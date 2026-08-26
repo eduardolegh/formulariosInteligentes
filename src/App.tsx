@@ -7,6 +7,8 @@ import { LoginPage } from './pages/LoginPage'
 import { UsersPage } from './pages/UsersPage'
 import { FormsPage } from './pages/FormsPage'
 import { FormEditorPage } from './pages/FormEditorPage'
+import { ParticipantFormsPage } from './pages/ParticipantFormsPage'
+import { ResponderPage } from './pages/ResponderPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -23,6 +25,7 @@ const navItems: NavItem[] = [
   { label: 'Contextos', to: '/contextos', icon: '◈', permission: 'contexts.create' },
   { label: 'Dashboards', to: '/dashboards', icon: '▥', permission: 'dashboards.view' },
   { label: 'Usuarios y roles', to: '/usuarios', icon: '♙', permission: 'users.manage' },
+  { label: 'Mis formularios', to: '/mis-formularios', icon: '✓', permission: 'forms.respond' },
 ]
 
 function App() {
@@ -30,6 +33,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/responder/:shareToken" element={<ResponderPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route index element={<OverviewPage />} />
@@ -39,6 +43,7 @@ function App() {
             <Route element={<PermissionRoute permission="contexts.create" />}><Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} /></Route>
             <Route element={<PermissionRoute permission="dashboards.view" />}><Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} /></Route>
             <Route element={<PermissionRoute permission="users.manage" />}><Route path="usuarios" element={<UsersPage />} /></Route>
+            <Route element={<PermissionRoute permission="forms.respond" />}><Route path="mis-formularios" element={<ParticipantFormsPage />} /></Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

@@ -17,6 +17,10 @@ La primera versión funcional de la plataforma incluye:
 - Políticas iniciales de Row Level Security.
 - Directorio de usuarios.
 - Creación de usuarios mediante Edge Function.
+- Módulo inicial de formularios con secciones y preguntas.
+- Publicación pública/privada y enlaces compartibles.
+- Rol Participante y pantalla de respuesta.
+- Registro de envíos y respuestas.
 - Migraciones SQL versionadas.
 - Documentación y diagramas versionados en Git.
 
@@ -88,7 +92,11 @@ formulariosInteligentes/
 │   │   └── supabase.ts
 │   ├── pages/
 │   │   ├── LoginPage.tsx
-│   │   └── UsersPage.tsx
+│   │   ├── UsersPage.tsx
+│   │   ├── FormsPage.tsx
+│   │   ├── FormEditorPage.tsx
+│   │   ├── ParticipantFormsPage.tsx
+│   │   └── ResponderPage.tsx
 │   ├── App.tsx
 │   ├── App.css
 │   ├── index.css
@@ -98,7 +106,9 @@ formulariosInteligentes/
 │   │   └── admin-create-user/
 │   └── migrations/
 │       ├── 001_profiles_roles_permissions.sql
-│       └── 002_add_profile_email.sql
+│       ├── 002_add_profile_email.sql
+│       ├── 003_forms.sql
+│       └── 004_form_visibility_and_submissions.sql
 ├── .env.example
 ├── .env.local
 ├── package.json
@@ -238,6 +248,20 @@ Implementa:
 - Columna `email` en `profiles`.
 - Índice por correo.
 - Sincronización de correos existentes desde `auth.users`.
+
+### `003_forms.sql`
+
+Implementa el modelo inicial de formularios: `forms`, `form_sections` y `form_fields`, junto con sus políticas RLS.
+
+### `004_form_visibility_and_submissions.sql`
+
+Implementa la publicación y respuesta de formularios:
+
+- Visibilidad `public` o `private` y enlace estable mediante `share_token`.
+- Rol `participant` (Participante) y permiso `forms.respond`.
+- Tablas `form_submissions` y `submission_answers`.
+- RLS para consultar formularios públicos sin sesión y formularios privados con el permiso de participante.
+- Inserción de respuestas anónimas en formularios públicos y autenticadas en formularios privados.
 - Actualización del trigger para nuevos usuarios.
 
 Las migraciones deben ejecutarse en el proyecto correcto de Supabase antes de utilizar las pantallas que dependen de ellas.
@@ -363,10 +387,10 @@ fd75c94 fix: show user creation function errors
 ## 16. Próximos pasos técnicos
 
 1. Confirmar despliegue de `admin-create-user`.
-2. Crear el módulo de formularios y sus tablas.
-3. Crear el módulo de contextos.
+2. Ejecutar la migración `004_form_visibility_and_submissions.sql` en Supabase.
+3. Asignar el rol Participante a los usuarios que responderán formularios privados.
 4. Implementar el constructor visual.
-5. Agregar permisos RLS para formularios y contextos.
+5. Crear el módulo de contextos.
 6. Implementar generación de formularios mediante IA.
 7. Crear respuestas, estados y dashboards.
 8. Agregar el conector REST genérico.

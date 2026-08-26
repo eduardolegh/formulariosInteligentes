@@ -61,3 +61,10 @@ button { font: inherit; cursor: pointer; }
 .option-add input { flex: 1; min-width: 0; }
 .options-editor ul { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .options-editor li { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 5px; background: #f4f2fc; color: #68718b; font-size: 11px; font-weight: 400; }
+.responses-list { display: grid; gap: 16px; margin-top: 18px; }
+.response-submission { border: 1px solid #edf0f5; border-radius: 10px; padding: 16px; }
+.submission-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: #68718b; font-size: 11px; }
+.submission-meta strong { color: #2d3552; }.submission-meta em { margin-left: auto; padding: 4px 7px; border-radius: 5px; background: #e9f7f1; color: #28755e; font-size: 9px; font-style: normal; }
+.answers-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 15px; }
+.answers-grid div { padding: 10px; border-radius: 7px; background: #f8f9fc; }.answers-grid small { color: #929bad; font-size: 10px; }.answers-grid p { margin: 5px 0 0; color: #2d3552; font-size: 12px; word-break: break-word; }
+@media (max-width: 620px) { .answers-grid { grid-template-columns: 1fr; } }

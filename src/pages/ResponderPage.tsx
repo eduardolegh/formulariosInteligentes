@@ -27,7 +27,7 @@ export function ResponderPage() {
       if (formError || !formData) { if (mounted) { setError('El formulario no existe, no está publicado o no tienes acceso.'); setIsLoading(false) }; return }
       const { data: sectionData, error: sectionError } = await supabase.from('form_sections').select('id, title, description, position').eq('form_id', formData.id).order('position')
       const nextSections = (sectionData as Section[] | null) ?? []
-      const { data: fieldData, error: fieldError } = nextSections.length ? await supabase.from('form_fields').select('id, section_id, label, field_type, is_required, position, config').in('section_id', nextSections.map((section) => section.id)).order('position') : { data: [], error: null }
+      const { data: fieldData, error: fieldError } = nextSections.length ? await supabase.from('form_fields').select('id, section_id, label, field_type, is_required, position, config').in('section_id', nextSections.map((section) => section.id)).eq('is_active', true).order('position') : { data: [], error: null }
       if (mounted) { setForm(formData as FormInfo); setSections(nextSections); setFields((fieldData as Field[] | null) ?? []); setError(sectionError?.message ?? fieldError?.message ?? ''); setIsLoading(false) }
     }
     void load()

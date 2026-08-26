@@ -5,6 +5,8 @@ import { AccessDeniedPage, PermissionRoute } from './auth/PermissionRoute'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { UsersPage } from './pages/UsersPage'
+import { FormsPage } from './pages/FormsPage'
+import { FormEditorPage } from './pages/FormEditorPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -32,7 +34,8 @@ function App() {
           <Route element={<AdminLayout />}>
             <Route index element={<OverviewPage />} />
             <Route path="sin-acceso" element={<AccessDeniedPage />} />
-            <Route element={<PermissionRoute permission="forms.view" />}><Route path="formularios" element={<PlaceholderPage title="Formularios" description="Aquí podrás crear y administrar los formularios de la plataforma." />} /></Route>
+            <Route element={<PermissionRoute permission="forms.view" />}><Route path="formularios" element={<FormsPage />} /></Route>
+            <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId" element={<FormEditorPage />} /></Route>
             <Route element={<PermissionRoute permission="contexts.create" />}><Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} /></Route>
             <Route element={<PermissionRoute permission="dashboards.view" />}><Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} /></Route>
             <Route element={<PermissionRoute permission="users.manage" />}><Route path="usuarios" element={<UsersPage />} /></Route>

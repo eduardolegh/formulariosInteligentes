@@ -1,0 +1,11 @@
+alter table public.profiles add column if not exists department text not null default '';
+create table if not exists public.form_departments (form_id uuid not null references public.forms(id) on delete cascade, department text not null, primary key (form_id, department));
+alter table public.form_departments enable row level security;
+create policy "form departments read" on public.form_departments for select to authenticated using (public.has_permission('forms.view') or public.has_permission('forms.respond'));
+create policy "form departments manage" on public.form_departments for all to authenticated using (public.has_permission('forms.edit')) with check (public.has_permission('forms.edit'));
+drop policy if exists "published forms: participants can read" on public.forms;
+create policy "published forms: participants by department" on public.forms for select to authenticated using (status = 'published' and (visibility = 'public' or (public.has_permission('forms.respond') and (not exists (select 1 from public.form_departments fd where fd.form_id = forms.id) or exists (select 1 from public.form_departments fd join public.profiles p on p.department = fd.department where fd.form_id = forms.id and p.id = auth.uid())))));
+drop policy if exists "published sections: participants can read" on public.form_sections;
+create policy "published sections: participants by department" on public.form_sections for select to authenticated using (exists (select 1 from public.forms f where f.id = form_id and f.status = 'published' and (f.visibility = 'public' or (public.has_permission('forms.respond') and (not exists (select 1 from public.form_departments fd where fd.form_id = f.id) or exists (select 1 from public.form_departments fd join public.profiles p on p.department = fd.department where fd.form_id = f.id and p.id = auth.uid()))))));
+drop policy if exists "published fields: participants can read" on public.form_fields;
+create policy "published fields: participants by department" on public.form_fields for select to authenticated using (exists (select 1 from public.form_sections s join public.forms f on f.id = s.form_id where s.id = section_id and f.status = 'published' and (f.visibility = 'public' or public.has_permission('forms.respond'))));

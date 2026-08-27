@@ -398,3 +398,18 @@ fd75c94 fix: show user creation function errors
 ## 17. Regla de mantenimiento
 
 Cada cambio técnico importante debe actualizar este documento o agregar una decisión en `docs/decisiones/`. El documento de planteamiento solo debe modificarse si cambia la visión, el alcance o los objetivos del proyecto.
+
+## 18. Funcionalidad implementada después del módulo inicial
+
+- Formularios públicos y privados mediante `visibility` y `share_token`.
+- Rol Participante y permiso `forms.respond`.
+- Respuestas almacenadas en `form_submissions` y `submission_answers`.
+- Listado compacto de respuestas con detalle expandible.
+- Catálogo de departamentos en `departments` y configuración por formulario.
+- Edición de perfiles, departamento y estado de usuarios.
+- Configuración de IA por formulario mediante `ai_enabled` y `form_contexts`.
+- Preguntas con estado `is_active` para conservarlas en ALTA o BAJA.
+
+## 19. Pendiente de implementación
+
+La ejecución del agente IA, el versionado avanzado de contextos y el almacenamiento de resultados generados se implementarán posteriormente mediante Edge Functions.

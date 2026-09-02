@@ -97,6 +97,10 @@ formulariosInteligentes/
 │   │   ├── FormEditorPage.tsx
 │   │   ├── ParticipantFormsPage.tsx
 │   │   └── ResponderPage.tsx
+│   │   ├── FormResponsesPage.tsx
+│   │   ├── FormDepartmentsPage.tsx
+│   │   ├── FormContextPage.tsx
+│   │   └── DepartmentsPage.tsx
 │   ├── App.tsx
 │   ├── App.css
 │   ├── index.css
@@ -108,7 +112,11 @@ formulariosInteligentes/
 │       ├── 001_profiles_roles_permissions.sql
 │       ├── 002_add_profile_email.sql
 │       ├── 003_forms.sql
-│       └── 004_form_visibility_and_submissions.sql
+│       ├── 004_form_visibility_and_submissions.sql
+│       ├── 005_departments_and_user_edit.sql
+│       ├── 006_departments_catalog.sql
+│       ├── 007_form_contexts.sql
+│       └── 008_field_status.sql
 ├── .env.example
 ├── .env.local
 ├── package.json
@@ -178,10 +186,18 @@ El acceso con GitHub puede agregarse mediante `signInWithOAuth` cuando se config
 
 ```text
 profiles
+departments
 roles
 permissions
 role_permissions
 user_roles
+forms
+form_sections
+form_fields
+form_departments
+form_submissions
+submission_answers
+form_contexts
 ```
 
 ### `profiles`
@@ -192,6 +208,7 @@ Almacena información complementaria de cada usuario de Auth:
 - `email`.
 - `full_name`.
 - `is_active`.
+- `department` para segmentar el acceso de Participantes.
 - `created_at`.
 
 ### `roles`
@@ -203,6 +220,7 @@ admin
 form_designer
 analyst
 context_configurator
+participant
 ```
 
 ### `permissions`
@@ -218,6 +236,7 @@ forms.view
 contexts.create
 contexts.edit
 dashboards.view
+forms.respond
 ```
 
 ### `role_permissions`
@@ -265,6 +284,22 @@ Implementa la publicación y respuesta de formularios:
 - Actualización del trigger para nuevos usuarios.
 
 Las migraciones deben ejecutarse en el proyecto correcto de Supabase antes de utilizar las pantallas que dependen de ellas.
+
+### `005_departments_and_user_edit.sql`
+
+Agrega departamentos a perfiles, relación de departamentos permitidos por formulario y políticas RLS para segmentación de formularios privados.
+
+### `006_departments_catalog.sql`
+
+Crea el catálogo administrable `departments`, con departamentos iniciales y políticas para crear, editar, activar y desactivar registros.
+
+### `007_form_contexts.sql`
+
+Agrega `forms.ai_enabled` y la tabla `form_contexts` para guardar objetivo, instrucciones, reglas, restricciones y resultado esperado del contexto IA.
+
+### `008_field_status.sql`
+
+Agrega `form_fields.is_active`, permitiendo conservar preguntas en estado ALTA o BAJA. Las preguntas BAJA se excluyen al responder.
 
 ## 10. Roles y permisos en React
 
@@ -387,13 +422,11 @@ fd75c94 fix: show user creation function errors
 ## 16. Próximos pasos técnicos
 
 1. Confirmar despliegue de `admin-create-user`.
-2. Ejecutar la migración `004_form_visibility_and_submissions.sql` en Supabase.
-3. Asignar el rol Participante a los usuarios que responderán formularios privados.
-4. Implementar el constructor visual.
-5. Crear el módulo de contextos.
-6. Implementar generación de formularios mediante IA.
-7. Crear respuestas, estados y dashboards.
-8. Agregar el conector REST genérico.
+2. Confirmar la ejecución de las migraciones `005` a `008` en Supabase.
+3. Implementar generación de preguntas y formularios mediante IA.
+4. Ejecutar el agente usando los contextos configurados.
+5. Guardar resultados generados y construir dashboards avanzados.
+6. Agregar el conector REST genérico.
 
 ## 17. Regla de mantenimiento
 

@@ -7,11 +7,14 @@ export function FormAiChatPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lastPrompt, setLastPrompt] = useState("");
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!message.trim()) return;
     setLoading(true);
     setError("");
+    setLastPrompt(message.trim());
+    setMessage("");
     const { data, error: invokeError } = await supabase.functions.invoke(
       "generate-form",
       { body: { message } },
@@ -86,6 +89,7 @@ export function FormAiChatPage() {
           <p className="eyebrow">CÓMO FUNCIONA</p>
           <h2>Describe tu idea</h2>
           <p>La IA generará una propuesta estructurada para revisar.</p>
+          {lastPrompt && <div className="ai-prompt-history"><small>ÚLTIMA INSTRUCCIÓN</small><span>{lastPrompt}</span></div>}
         </aside>
       </div>
     </section>

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 
 type FormRecord = { id:string; name:string; description:string; status:'draft'|'published'|'archived'; visibility:'public'|'private'; share_token:string }
 type Section = { id:string; title:string; description:string; position:number }
-type Field = { id:string; section_id:string; field_key:string; label:string; field_type:string; is_required:boolean; position:number; config?:{options?:string[]} }
+type Field = { id:string; section_id:string; field_key:string; label:string; field_type:string; is_required:boolean; is_active:boolean; position:number; config?:{options?:string[]} }
 const fieldTypes = [['text','Texto corto'],['textarea','Texto largo'],['email','Correo electrónico'],['phone','Teléfono'],['number','Número'],['date','Fecha'],['select','Lista desplegable'],['boolean','Sí / No']]
 
 export function FormEditorPage() {

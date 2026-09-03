@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 type FormRecord = { id:string; name:string; description:string; status:'draft'|'published'|'archived'; visibility:'public'|'private'; share_token:string }
 type Section = { id:string; title:string; description:string; position:number }
 type Field = { id:string; section_id:string; field_key:string; label:string; field_type:string; is_required:boolean; is_active:boolean; position:number; config?:{options?:string[]} }
-const fieldTypes = [['text','Texto corto'],['textarea','Texto largo'],['email','Correo electrónico'],['phone','Teléfono'],['number','Número'],['date','Fecha'],['select','Lista desplegable'],['boolean','Sí / No']]
+const fieldTypes = [['text','Texto corto'],['textarea','Texto largo'],['email','Correo electrónico'],['phone','Teléfono'],['number','Número'],['date','Fecha'],['select','Lista desplegable'],['boolean','Sí / No'],['photo','Fotografía (cámara)'],['photo_attachment','Fotografía adjunta']]
 
 export function FormEditorPage() {
   const { formId } = useParams(); const [form,setForm]=useState<FormRecord|null>(null); const [sections,setSections]=useState<Section[]>([]); const [fields,setFields]=useState<Field[]>([]); const [selectedSection,setSelectedSection]=useState(''); const [selectedField,setSelectedField]=useState<Field|null>(null); const [sectionTitle,setSectionTitle]=useState(''); const [fieldLabel,setFieldLabel]=useState(''); const [fieldType,setFieldType]=useState('text'); const [fieldOptions,setFieldOptions]=useState<string[]>([]); const [optionDraft,setOptionDraft]=useState(''); const [isLoading,setIsLoading]=useState(true); const [error,setError]=useState('')

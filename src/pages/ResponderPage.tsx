@@ -47,12 +47,22 @@ export function ResponderPage() {
   }
 
   function updateAnswer(fieldId: string, value: string) { setAnswers((current) => ({ ...current, [fieldId]: value })) }
+  function handlePhoto(fieldId: string, file?: File) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('Selecciona un archivo de imagen.'); return }
+    const reader = new FileReader()
+    reader.onload = () => updateAnswer(fieldId, String(reader.result ?? ''))
+    reader.readAsDataURL(file)
+  }
   function renderInput(field: Field) {
     const common = { required: field.is_required, value: answers[field.id] ?? '', onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => updateAnswer(field.id, event.target.value) }
     if (field.field_type === 'textarea') return <textarea {...common} />
     if (field.field_type === 'select' || field.field_type === 'boolean') {
       const options = field.field_type === 'boolean' ? ['Sí', 'No'] : (field.config?.options ?? [])
       return <select {...common}><option value="">Selecciona una opción</option>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+    }
+    if (field.field_type === 'photo' || field.field_type === 'photo_attachment') {
+      return <div className="photo-input"><input required={field.is_required && !answers[field.id]} type="file" accept="image/*" capture={field.field_type === 'photo' ? 'environment' : undefined} onChange={(event) => handlePhoto(field.id, event.target.files?.[0])} />{answers[field.id] && <img src={answers[field.id]} alt="Vista previa" />}</div>
     }
     return <input {...common} type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : field.field_type === 'email' ? 'email' : field.field_type === 'phone' ? 'tel' : 'text'} inputMode={field.field_type === 'phone' ? 'numeric' : undefined} pattern={field.field_type === 'phone' ? '[0-9]{7,15}' : undefined} />
   }

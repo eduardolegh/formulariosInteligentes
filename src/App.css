@@ -45,6 +45,9 @@ button { font: inherit; cursor: pointer; }
 .response-field input, .response-field textarea, .response-field select { width: 100%; border: 1px solid #dce1ec; border-radius: 8px; padding: 11px 12px; color: var(--ink); font: inherit; font-size: 13px; outline: none; resize: vertical; background: #fff; }
 .response-field textarea { min-height: 100px; }
 .response-field input:focus, .response-field textarea:focus, .response-field select:focus { border-color: #7a65df; box-shadow: 0 0 0 3px #7a65df1c; }
+.photo-input { display: grid; gap: 10px; }
+.photo-input input { padding: 9px; }
+.photo-input img { width: min(100%, 280px); max-height: 210px; object-fit: cover; border-radius: 9px; border: 1px solid #dce1ec; }
 .response-submit { margin-top: 30px; }
 .response-success { text-align: center; }
 .success-mark { width: 48px; height: 48px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 50%; color: #28755e; background: #e9f7f1; font-size: 25px; font-weight: 800; }

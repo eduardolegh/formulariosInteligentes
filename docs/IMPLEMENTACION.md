@@ -442,7 +442,42 @@ Cada cambio técnico importante debe actualizar este documento o agregar una dec
 - Edición de perfiles, departamento y estado de usuarios.
 - Configuración de IA por formulario mediante `ai_enabled` y `form_contexts`.
 - Preguntas con estado `is_active` para conservarlas en ALTA o BAJA.
+- Tipos de pregunta `photo` y `photo_attachment`, con captura mediante cámara o selección de imagen.
+- Pantalla de creación de formularios mediante IA en `/formularios/crear-ai`.
+- Integración con OpenAI GPT-5 nano mediante la Edge Function `generate-form`.
+- Vista previa visual de la estructura generada y registro de la última instrucción enviada.
+- Almacenamiento confirmado del formulario generado, sus secciones y preguntas en Supabase.
+
+## 20. Creación de formularios con IA
+
+El administrador puede describir en lenguaje natural el formulario que necesita. La interfaz envía la instrucción a la Edge Function `generate-form`, que consulta OpenAI usando el modelo `gpt-5-nano`.
+
+```text
+Chatbot React
+    ↓
+Supabase Edge Function: generate-form
+    ↓
+OpenAI Responses API (gpt-5-nano)
+    ↓
+JSON Schema validado
+    ↓
+Vista previa visual
+    ↓
+Confirmación del administrador
+    ↓
+forms → form_sections → form_fields
+```
+
+La respuesta utiliza Structured Outputs y solo permite los tipos soportados por la plataforma: `text`, `textarea`, `email`, `phone`, `number`, `date`, `select`, `boolean`, `photo` y `photo_attachment`. Las listas incluyen sus opciones en `config.options`.
+
+El usuario debe revisar la vista previa y seleccionar **Guardar formulario**. En ese momento se crea un borrador y todas sus preguntas se registran inicialmente en estado ALTA (`is_active = true`).
+
+La clave `OPENAI_API_KEY` se mantiene como secreto de Supabase y nunca se expone en React. Para desplegar la función:
+
+```bash
+npx supabase functions deploy generate-form
+```
 
 ## 19. Pendiente de implementación
 
-La ejecución del agente IA, el versionado avanzado de contextos y el almacenamiento de resultados generados se implementarán posteriormente mediante Edge Functions.
+Pendiente: permitir editar la propuesta antes de guardarla directamente desde el chat, conservar conversaciones completas y agregar generación de formularios a partir del contexto IA configurado.

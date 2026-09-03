@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -18,6 +18,9 @@ export function ResponderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [cameraField, setCameraField] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -54,6 +57,18 @@ export function ResponderPage() {
     reader.onload = () => updateAnswer(fieldId, String(reader.result ?? ''))
     reader.readAsDataURL(file)
   }
+  async function startCamera(fieldId: string) {
+    setError('')
+    if (!navigator.mediaDevices?.getUserMedia) { setError('Tu navegador o dispositivo no permite acceder a la cámara.'); return }
+    try { streamRef.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); setCameraField(fieldId); requestAnimationFrame(() => { if (videoRef.current && streamRef.current) { videoRef.current.srcObject = streamRef.current; void videoRef.current.play() } }) } catch { setError('No se pudo acceder a la cámara. Revisa los permisos del navegador.') }
+  }
+  function takePhoto(fieldId: string) {
+    const video = videoRef.current
+    if (!video) return
+    const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
+    canvas.getContext('2d')?.drawImage(video, 0, 0); updateAnswer(fieldId, canvas.toDataURL('image/jpeg', 0.85))
+    streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setCameraField(null)
+  }
   function renderInput(field: Field) {
     const common = { required: field.is_required, value: answers[field.id] ?? '', onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => updateAnswer(field.id, event.target.value) }
     if (field.field_type === 'textarea') return <textarea {...common} />
@@ -62,7 +77,7 @@ export function ResponderPage() {
       return <select {...common}><option value="">Selecciona una opción</option>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select>
     }
     if (field.field_type === 'photo' || field.field_type === 'photo_attachment') {
-      return <div className="photo-input"><input required={field.is_required && !answers[field.id]} type="file" accept="image/*" capture={field.field_type === 'photo' ? 'environment' : undefined} onChange={(event) => handlePhoto(field.id, event.target.files?.[0])} />{answers[field.id] && <img src={answers[field.id]} alt="Vista previa" />}</div>
+      return <div className="photo-input">{field.field_type === 'photo' && <button className="secondary-button" onClick={() => void startCamera(field.id)} type="button">Activar cámara</button>}{cameraField === field.id && <div><video ref={videoRef} className="camera-preview" playsInline /><button className="primary-button" onClick={() => takePhoto(field.id)} type="button">Tomar fotografía</button></div>}{field.field_type === 'photo_attachment' && <input required={field.is_required && !answers[field.id]} type="file" accept="image/*" onChange={(event) => handlePhoto(field.id, event.target.files?.[0])} />}{answers[field.id] && <img src={answers[field.id]} alt="Vista previa" />}</div>
     }
     return <input {...common} type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : field.field_type === 'email' ? 'email' : field.field_type === 'phone' ? 'tel' : 'text'} inputMode={field.field_type === 'phone' ? 'numeric' : undefined} pattern={field.field_type === 'phone' ? '[0-9]{7,15}' : undefined} />
   }

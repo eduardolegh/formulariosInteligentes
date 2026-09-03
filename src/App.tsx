@@ -13,6 +13,7 @@ import { FormResponsesPage } from './pages/FormResponsesPage'
 import { FormDepartmentsPage } from './pages/FormDepartmentsPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { FormContextPage } from './pages/FormContextPage'
+import { FormAiChatPage } from './pages/FormAiChatPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -48,6 +49,7 @@ function App() {
             <Route element={<PermissionRoute permission="forms.view" />}><Route path="formularios/:formId/respuestas" element={<FormResponsesPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId/departamentos" element={<FormDepartmentsPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId/contexto" element={<FormContextPage />} /></Route>
+            <Route element={<PermissionRoute permission="forms.create" />}><Route path="formularios/crear-ai" element={<FormAiChatPage />} /></Route>
             <Route element={<PermissionRoute permission="users.manage" />}><Route path="departamentos" element={<DepartmentsPage />} /></Route>
             <Route element={<PermissionRoute permission="contexts.create" />}><Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} /></Route>
             <Route element={<PermissionRoute permission="dashboards.view" />}><Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} /></Route>

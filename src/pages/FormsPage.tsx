@@ -78,7 +78,7 @@ export function FormsPage() {
             Administra formularios, contexto IA, departamentos y respuestas.
           </p>
         </div>
-        {hasPermission("forms.create") && (<>
+        {hasPermission("forms.create") && (<div className="form-create-actions">
           <button className="secondary-button" onClick={() => navigate('/formularios/crear-ai')} type="button">✦ Crear formulario AI</button>
           <button
             className="primary-button"
@@ -86,7 +86,7 @@ export function FormsPage() {
             type="button"
           >
             + Crear formulario
-          </button></> 
+          </button></div>
         )}
       </div>
       {error && <div className="error-banner">{error}</div>}

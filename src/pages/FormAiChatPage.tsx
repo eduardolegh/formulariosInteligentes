@@ -1,12 +1,15 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import { supabase } from "../lib/supabase";
 
 export function FormAiChatPage() {
+  const navigate = useNavigate(); const { session } = useAuth();
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [lastPrompt, setLastPrompt] = useState("");
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -23,6 +26,18 @@ export function FormAiChatPage() {
       setError(invokeError?.message ?? data?.error);
     else setResult(data.form);
     setLoading(false);
+  }
+  async function saveForm() {
+    if (!result || !session) return; setSaving(true); setError('');
+    const { data: form, error: formError } = await supabase.from('forms').insert({ name: result.name, description: result.description ?? '', created_by: session.user.id }).select('id').single();
+    if (formError || !form) { setError(formError?.message ?? 'No se pudo crear el formulario.'); setSaving(false); return }
+    for (const [sectionIndex, section] of (result.sections ?? []).entries()) {
+      const { data: createdSection, error: sectionError } = await supabase.from('form_sections').insert({ form_id: form.id, title: section.title, description: section.description ?? '', position: sectionIndex }).select('id').single();
+      if (sectionError || !createdSection) { setError(sectionError?.message ?? 'No se pudo crear una sección.'); setSaving(false); return }
+      const fields = (section.fields ?? []).map((field: any, index: number) => ({ section_id: createdSection.id, field_key: `field_${Date.now()}_${index}`, label: field.label, field_type: field.field_type, is_required: Boolean(field.is_required), config: field.field_type === 'select' ? { options: field.options ?? [] } : {}, position: index, is_active: true }));
+      if (fields.length) { const { error: fieldsError } = await supabase.from('form_fields').insert(fields); if (fieldsError) { setError(fieldsError.message); setSaving(false); return } }
+    }
+    navigate(`/formularios/${form.id}`);
   }
   return (
     <section className="ai-chat-page">
@@ -70,6 +85,7 @@ export function FormAiChatPage() {
                     ))}
                   </div>
                 ))}
+                <button className="primary-button ai-save-button" disabled={saving} onClick={() => void saveForm()} type="button">{saving ? 'Guardando…' : 'Guardar formulario'}</button>
               </div>
             )}
           </div>

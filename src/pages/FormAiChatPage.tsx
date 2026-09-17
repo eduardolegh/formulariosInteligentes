@@ -20,7 +20,7 @@ export function FormAiChatPage() {
     setMessage("");
     const { data, error: invokeError } = await supabase.functions.invoke(
       "generate-form",
-      { body: { message } },
+      { body: { message: result ? `${message}\n\nFORMULARIO ACTUAL (conserva todo lo no solicitado):\n${JSON.stringify(result)}` : message } },
     );
     if (invokeError || data?.error)
       setError(invokeError?.message ?? data?.error);

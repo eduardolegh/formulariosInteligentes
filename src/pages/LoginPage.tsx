@@ -36,7 +36,7 @@ export function LoginPage() {
   return (
     <main className="auth-page">
       <section className="login-card">
-        <div className="login-brand"><div className="brand-mark">fi</div><div><strong>Formularios</strong><span>inteligentes</span></div></div>
+        <div className="login-brand"><img src="/logo.svg" alt="Formularios Inteligentes" /></div>
         <p className="eyebrow">PANEL ADMINISTRATIVO</p>
         <h1>Bienvenido de nuevo</h1>
         <p className="login-subtitle">Inicia sesión para administrar tus formularios y procesos.</p>

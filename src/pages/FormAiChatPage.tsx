@@ -1,16 +1,18 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { supabase } from "../lib/supabase";
 
 export function FormAiChatPage() {
   const navigate = useNavigate(); const { session } = useAuth();
+  const [searchParams] = useSearchParams();
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastPrompt, setLastPrompt] = useState("");
+  useEffect(() => { const id = searchParams.get('edit'); if (!id) return; async function load() { const { data: form } = await supabase.from('forms').select('name,description,ai_enabled').eq('id', id).single(); const { data: sections } = await supabase.from('form_sections').select('id,title,description,position').eq('form_id', id).order('position'); const ids = (sections ?? []).map((section) => section.id); const { data: fields } = ids.length ? await supabase.from('form_fields').select('section_id,label,field_type,is_required,position,config').in('section_id', ids).order('position') : { data: [] }; if (form) setResult({ ...form, sections: (sections ?? []).map((section) => ({ ...section, fields: (fields ?? []).filter((field) => field.section_id === section.id).map((field) => ({ ...field, options: field.config?.options ?? [] })) })) }) } void load() }, [searchParams]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!message.trim()) return;

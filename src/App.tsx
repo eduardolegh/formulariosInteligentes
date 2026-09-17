@@ -93,7 +93,7 @@ function AdminLayout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark"><img src="/favicon.svg" alt="" /></div>
+          <div className="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M8 4h11l5 5v19H8z" fill="none" stroke="white" strokeWidth="2.4" strokeLinejoin="round"/><path d="M12 15h7M12 20h7" stroke="white" strokeWidth="1.8" strokeLinecap="round"/><path d="m23 12 1.5 3 3 1.5-3 1.5-1.5 3-1.5-3-3-1.5 3-1.5z" fill="#c2b4ff"/></svg></div>
           <div>
             <strong>Formularios</strong>
             <span>inteligentes</span>

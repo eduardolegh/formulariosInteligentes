@@ -31,8 +31,10 @@ export function FormAiChatPage() {
   }
   async function saveForm() {
     if (!result || !session) return; setSaving(true); setError('');
-    const { data: form, error: formError } = await supabase.from('forms').insert({ name: result.name, description: result.description ?? '', created_by: session.user.id }).select('id').single();
+    const editId = searchParams.get('edit');
+    const { data: form, error: formError } = editId ? await supabase.from('forms').update({ name: result.name, description: result.description ?? '', updated_at: new Date().toISOString() }).eq('id', editId).select('id').single() : await supabase.from('forms').insert({ name: result.name, description: result.description ?? '', created_by: session.user.id }).select('id').single();
     if (formError || !form) { setError(formError?.message ?? 'No se pudo crear el formulario.'); setSaving(false); return }
+    if (editId) await supabase.from('form_sections').delete().eq('form_id', editId);
     for (const [sectionIndex, section] of (result.sections ?? []).entries()) {
       const { data: createdSection, error: sectionError } = await supabase.from('form_sections').insert({ form_id: form.id, title: section.title, description: section.description ?? '', position: sectionIndex }).select('id').single();
       if (sectionError || !createdSection) { setError(sectionError?.message ?? 'No se pudo crear una sección.'); setSaving(false); return }

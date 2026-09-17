@@ -127,7 +127,7 @@ function AdminLayout() {
       <main className="main-content">
         <header className="topbar">
           <div className="breadcrumb">Panel administrativo <span>/</span> <strong>Resumen</strong></div>
-          <div className="topbar-actions"><button className="icon-button" aria-label="Notificaciones">♢</button><button className="help-button">?</button><button className="topbar-signout" onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace: true }) }} type="button">Cerrar sesión</button></div>
+          <div className="topbar-actions"><div className="topbar-user"><strong>{session?.user.email ?? 'Usuario'}</strong><small>{hasPermission('forms.inbox') && !hasPermission('forms.create') ? 'BackOffice' : hasPermission('users.manage') ? 'Administrador' : 'Usuario'}</small></div><button className="topbar-signout" onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace: true }) }} type="button">Cerrar sesión</button></div>
         </header>
         <div className="page-container"><Outlet /></div>
       </main>

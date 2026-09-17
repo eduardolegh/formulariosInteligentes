@@ -102,7 +102,7 @@ function AdminLayout() {
 
         <div className="workspace-label">ESPACIO DE TRABAJO</div>
         <nav className="main-nav" aria-label="Navegación principal">
-          {navItems.filter((item) => !item.permission || hasPermission(item.permission)).map((item) => (
+          {navItems.filter((item) => !item.permission || hasPermission(item.permission)).filter((item) => !(item.to === '/formularios' && hasPermission('forms.inbox') && !hasPermission('forms.create'))).map((item) => (
             <NavLink
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
               end={item.to === '/'}

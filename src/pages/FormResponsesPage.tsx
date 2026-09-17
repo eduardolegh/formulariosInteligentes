@@ -25,11 +25,35 @@ export function FormResponsesPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(selectedSubmission);
+  const [expanded] = useState<string | null>(selectedSubmission);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [observation, setObservation] = useState("");
-  async function updateStatus(id: string, nextStatus: string) { if ((nextStatus === 'approved' || nextStatus === 'rejected') && !observation.trim()) { setError('Escribe una observación antes de continuar.'); return } const { error: updateError } = await supabase.from('form_submissions').update({ status: nextStatus, observation: observation.trim() }).eq('id', id); if (updateError) setError(updateError.message); else { setObservation(''); setSubmissions((current) => current.map((item) => item.id === id ? { ...item, status: nextStatus, observation: observation.trim() } : item)) } }
+  const [reviewAction, setReviewAction] = useState<{ id: string; status: string } | null>(null);
+  async function updateStatus(id: string, nextStatus: string) {
+    if (
+      (nextStatus === "approved" || nextStatus === "rejected") &&
+      !observation.trim()
+    ) {
+      setError("Escribe una observación antes de continuar.");
+      return;
+    }
+    const { error: updateError } = await supabase
+      .from("form_submissions")
+      .update({ status: nextStatus, observation: observation.trim() })
+      .eq("id", id);
+    if (updateError) setError(updateError.message);
+    else {
+      setObservation("");
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === id
+            ? { ...item, status: nextStatus, observation: observation.trim() }
+            : item,
+        ),
+      );
+    }
+  }
   useEffect(() => {
     let mounted = true;
     async function load() {
@@ -146,24 +170,40 @@ export function FormResponsesPage() {
                     {new Date(submission.submitted_at).toLocaleString("es-GT")}
                   </span>
                   <span>
-                    <em className="submission-status">{submission.status === 'submitted' ? 'INGRESADO' : submission.status === 'in_review' ? 'EN REVISIÓN' : submission.status.toUpperCase()}</em>
+                    <em className="submission-status">
+                      {submission.status === "submitted"
+                        ? "INGRESADO"
+                        : submission.status === "in_review"
+                          ? "EN REVISIÓN"
+                          : submission.status.toUpperCase()}
+                    </em>
                   </span>
                   <span>
-                    {submission.status === 'submitted' && <button className="secondary-button" onClick={() => void updateStatus(submission.id, 'in_review')} type="button">Iniciar revisión</button>}
-                    {submission.status === 'in_review' && <><input className="review-observation" placeholder="Observación" value={observation} onChange={(e) => setObservation(e.target.value)} /><button className="secondary-button" onClick={() => void updateStatus(submission.id, 'approved')} type="button">Aprobar</button><button className="text-button" onClick={() => void updateStatus(submission.id, 'rejected')} type="button">Rechazar</button></>}
-                    <button
-                      className="text-button"
-                      onClick={() =>
-                        setExpanded(
-                          expanded === submission.id ? null : submission.id,
-                        )
-                      }
-                      type="button"
-                    >
-                      {expanded === submission.id
-                        ? "Ocultar"
-                        : "Ver respuestas"}
-                    </button>
+                    {submission.status === "submitted" && (
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          void updateStatus(submission.id, "in_review")
+                        }
+                        type="button"
+                      >
+                        Iniciar revisión
+                      </button>
+                    )}
+                    {submission.status === "in_review" && (
+                      <>
+                        <button
+                          className="secondary-button"
+                          onClick={() => setReviewAction({ id: submission.id, status: "approved" })}
+                          type="button"
+                        >
+                          Aprobar
+                        </button>
+                        <button className="secondary-button" onClick={() => setReviewAction({ id: submission.id, status: "rejected" })} type="button">
+                          Rechazar
+                        </button>
+                      </>
+                    )}
                   </span>
                 </div>
                 {expanded === submission.id && (
@@ -181,6 +221,7 @@ export function FormResponsesPage() {
           </div>
         </div>
       )}
+      {reviewAction && <div className="modal-backdrop"><div className="review-modal"><h2>{reviewAction.status === 'approved' ? 'Aprobar envío' : 'Rechazar envío'}</h2><p>Escribe una observación para registrar esta decisión.</p><textarea autoFocus value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="Observación" rows={4} /><div className="form-actions"><button className="text-button" onClick={() => { setReviewAction(null); setObservation('') }} type="button">Cancelar</button><button className="primary-button" onClick={() => { void updateStatus(reviewAction.id, reviewAction.status); setReviewAction(null) }} type="button">Confirmar</button></div></div></div>}
     </section>
   );
 }

@@ -1,0 +1,1 @@
+create policy "backoffice can read department submissions" on public.form_submissions for select to authenticated using (public.has_permission('forms.inbox') and exists (select 1 from public.form_departments fd join public.profiles p on p.department=fd.department where fd.form_id=form_submissions.form_id and p.id=auth.uid()));

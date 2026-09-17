@@ -63,7 +63,8 @@ export function FormResponsesPage() {
       if (!mounted) return;
       setFormName(form?.name ?? "Formulario");
       setFields((fieldData as Field[] | null) ?? []);
-      setSubmissions((submissionData as Submission[] | null) ?? []);
+    const allSubmissions = (submissionData as Submission[] | null) ?? [];
+    setSubmissions(selectedSubmission ? allSubmissions.filter((submission) => submission.id === selectedSubmission) : allSubmissions);
       setAnswers((answerData as Answer[] | null) ?? []);
       setError(
         formError?.message ??
@@ -78,7 +79,7 @@ export function FormResponsesPage() {
     return () => {
       mounted = false;
     };
-  }, [formId]);
+  }, [formId, selectedSubmission]);
   const answer = (submissionId: string, fieldId: string) => {
     const value = answers.find(
       (item) =>

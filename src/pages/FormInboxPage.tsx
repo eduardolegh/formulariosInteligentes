@@ -89,16 +89,21 @@ export function FormInboxPage() {
           {filtered.map((r) => (
             <div className="submission-row" key={r.id}>
               <span>
-                <strong>{r.id.slice(0, 8)}…</strong>
+                <strong title={r.id}>{r.id.toUpperCase()}</strong>
               </span>
               <span>{r.forms?.name ?? "Formulario"}</span>
               <span>{new Date(r.submitted_at).toLocaleString("es-GT")}</span>
-                <span>
-                  <em className="submission-status">
+              <span>
+                <em className="submission-status">
                   {r.status === "submitted" ? "Ingresado" : r.status}
-                  </em>
-                </span>
-                <a className="table-link" href={`/formularios/${r.form_id}/respuestas`}>Ver respuestas</a>
+                </em>
+              </span>
+              <a
+                className="table-link"
+                href={`/formularios/${r.form_id}/respuestas?submission=${r.id}`}
+              >
+                Ver respuestas
+              </a>
             </div>
           ))}
           {!filtered.length && (

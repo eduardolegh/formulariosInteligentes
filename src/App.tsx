@@ -14,6 +14,7 @@ import { FormDepartmentsPage } from './pages/FormDepartmentsPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { FormContextPage } from './pages/FormContextPage'
 import { FormAiChatPage } from './pages/FormAiChatPage'
+import { FormInboxPage } from './pages/FormInboxPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { label: 'Usuarios y roles', to: '/usuarios', icon: '♙', permission: 'users.manage' },
   { label: 'Departamentos', to: '/departamentos', icon: '⌘', permission: 'users.manage' },
   { label: 'Mis formularios', to: '/mis-formularios', icon: '✓', permission: 'forms.respond' },
+  { label: 'Bandeja formularios', to: '/bandeja-formularios', icon: '▣', permission: 'forms.inbox' },
 ]
 
 function App() {
@@ -47,6 +49,7 @@ function App() {
             <Route element={<PermissionRoute permission="forms.view" />}><Route path="formularios" element={<FormsPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId" element={<FormEditorPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.view" />}><Route path="formularios/:formId/respuestas" element={<FormResponsesPage />} /></Route>
+            <Route element={<PermissionRoute permission="forms.inbox" />}><Route path="bandeja-formularios" element={<FormInboxPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId/departamentos" element={<FormDepartmentsPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId/contexto" element={<FormContextPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.create" />}><Route path="formularios/crear-ai" element={<FormAiChatPage />} /></Route>

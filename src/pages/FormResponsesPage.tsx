@@ -7,6 +7,7 @@ type Submission = {
   submitted_by: string | null;
   status: string;
   submitted_at: string;
+  observation: string;
 };
 type Answer = { submission_id: string; field_id: string; value: unknown };
 type Field = {
@@ -27,6 +28,8 @@ export function FormResponsesPage() {
   const [expanded, setExpanded] = useState<string | null>(selectedSubmission);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [observation, setObservation] = useState("");
+  async function updateStatus(id: string, nextStatus: string) { if ((nextStatus === 'approved' || nextStatus === 'rejected') && !observation.trim()) { setError('Escribe una observación antes de continuar.'); return } const { error: updateError } = await supabase.from('form_submissions').update({ status: nextStatus, observation: observation.trim() }).eq('id', id); if (updateError) setError(updateError.message); else { setObservation(''); setSubmissions((current) => current.map((item) => item.id === id ? { ...item, status: nextStatus, observation: observation.trim() } : item)) } }
   useEffect(() => {
     let mounted = true;
     async function load() {
@@ -63,8 +66,14 @@ export function FormResponsesPage() {
       if (!mounted) return;
       setFormName(form?.name ?? "Formulario");
       setFields((fieldData as Field[] | null) ?? []);
-    const allSubmissions = (submissionData as Submission[] | null) ?? [];
-    setSubmissions(selectedSubmission ? allSubmissions.filter((submission) => submission.id === selectedSubmission) : allSubmissions);
+      const allSubmissions = (submissionData as Submission[] | null) ?? [];
+      setSubmissions(
+        selectedSubmission
+          ? allSubmissions.filter(
+              (submission) => submission.id === selectedSubmission,
+            )
+          : allSubmissions,
+      );
       setAnswers((answerData as Answer[] | null) ?? []);
       setError(
         formError?.message ??
@@ -137,9 +146,11 @@ export function FormResponsesPage() {
                     {new Date(submission.submitted_at).toLocaleString("es-GT")}
                   </span>
                   <span>
-                    <em className="submission-status">INGRESADO</em>
+                    <em className="submission-status">{submission.status === 'submitted' ? 'INGRESADO' : submission.status === 'in_review' ? 'EN REVISIÓN' : submission.status.toUpperCase()}</em>
                   </span>
                   <span>
+                    {submission.status === 'submitted' && <button className="secondary-button" onClick={() => void updateStatus(submission.id, 'in_review')} type="button">Iniciar revisión</button>}
+                    {submission.status === 'in_review' && <><input className="review-observation" placeholder="Observación" value={observation} onChange={(e) => setObservation(e.target.value)} /><button className="secondary-button" onClick={() => void updateStatus(submission.id, 'approved')} type="button">Aprobar</button><button className="text-button" onClick={() => void updateStatus(submission.id, 'rejected')} type="button">Rechazar</button></>}
                     <button
                       className="text-button"
                       onClick={() =>

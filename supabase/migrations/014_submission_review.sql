@@ -1,0 +1,2 @@
+alter table public.form_submissions add column if not exists observation text not null default '';
+create policy "backoffice can update department submissions" on public.form_submissions for update to authenticated using (public.has_permission('forms.inbox') and exists (select 1 from public.form_departments fd join public.profiles p on p.department=fd.department where fd.form_id=form_submissions.form_id and p.id=auth.uid())) with check (public.has_permission('forms.inbox'));

@@ -89,7 +89,7 @@ export function FormInboxPage() {
           {filtered.map((r) => (
             <div className="submission-row" key={r.id}>
               <span>
-                <strong title={r.id}>{r.id.toUpperCase()}</strong>
+                <strong title={r.id}>{r.id.slice(0, 8).toUpperCase()}</strong>
               </span>
               <span>{r.forms?.name ?? "Formulario"}</span>
               <span>{new Date(r.submitted_at).toLocaleString("es-GT")}</span>

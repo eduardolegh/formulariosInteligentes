@@ -120,7 +120,6 @@ function AdminLayout() {
           <div className="profile-chip">
             <div className="avatar">AD</div>
             <div><strong>{session?.user.email ?? 'Administrador'}</strong><small>Sesión activa</small></div>
-            <button className="signout-button" onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace: true }) }} type="button">Salir</button>
           </div>
         </div>
       </aside>
@@ -128,7 +127,7 @@ function AdminLayout() {
       <main className="main-content">
         <header className="topbar">
           <div className="breadcrumb">Panel administrativo <span>/</span> <strong>Resumen</strong></div>
-          <div className="topbar-actions"><button className="icon-button" aria-label="Notificaciones">♢</button><button className="help-button">?</button></div>
+          <div className="topbar-actions"><button className="icon-button" aria-label="Notificaciones">♢</button><button className="help-button">?</button><button className="topbar-signout" onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace: true }) }} type="button">Cerrar sesión</button></div>
         </header>
         <div className="page-container"><Outlet /></div>
       </main>

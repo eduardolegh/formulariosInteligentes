@@ -93,7 +93,7 @@ function AdminLayout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">fi</div>
+          <div className="brand-mark"><img src="/favicon.svg" alt="" /></div>
           <div>
             <strong>Formularios</strong>
             <span>inteligentes</span>

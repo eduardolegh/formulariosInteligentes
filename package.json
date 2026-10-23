@@ -5,17 +5,24 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "backend:dev": "node --env-file=backend/.env --watch backend/src/server.mjs",
+    "backend:start": "node --env-file=backend/.env backend/src/server.mjs",
+    "backend:check": "node --check backend/src/server.mjs && node --check backend/src/dashboard-metrics.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
+    "leaflet": "^1.9.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2"
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.18.2",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

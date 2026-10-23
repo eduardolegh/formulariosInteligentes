@@ -14,6 +14,7 @@ Comandos disponibles:
 ```bash
 npm run build
 npm run lint
+npm run backend:check
 npm run preview
 ```
 
@@ -21,6 +22,9 @@ npm run preview
 
 - [Planteamiento final del proyecto](docs/PLANTEAMIENTO.md)
 - [Documento de implementación](docs/IMPLEMENTACION.md)
+- [Configuración del backend local con Ollama](docs/OLLAMA_BACKEND.md)
+- [Integraciones externas](docs/INTEGRACIONES_EXTERNAS.md)
+- [Ubicación de respuestas y mapa](docs/GEOLOCATION_MAP.md)
 - [Diagramas](docs/diagramas/README.md)
 - [Decisiones técnicas](docs/decisiones/README.md)
 

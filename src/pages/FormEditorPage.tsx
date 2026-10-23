@@ -38,6 +38,7 @@ const fieldTypes = [
   ["boolean", "Sí / No"],
   ["photo", "Fotografía (cámara)"],
   ["photo_attachment", "Fotografía adjunta"],
+  ["geolocation", "Geolocalización"],
 ];
 
 export function FormEditorPage() {
@@ -275,6 +276,8 @@ export function FormEditorPage() {
           <p>{form.description || "Sin descripción"}</p>
         </div>
         <div className="editor-actions">
+          <button className="secondary-button" onClick={() => navigate(`/formularios/${form.id}/integraciones`)} type="button">⇄ Integraciones</button>
+          <button className="secondary-button" onClick={() => navigate(`/formularios/${form.id}/contexto`)} type="button">⚙ Configurar contexto IA</button>
           <button className="secondary-button" onClick={() => navigate(`/formularios/crear-ai?edit=${form.id}`)} type="button">✦ Editar con IA</button>
           <select
             className="visibility-select"

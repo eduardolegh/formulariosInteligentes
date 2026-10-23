@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { supabase } from "../lib/supabase";
+import { invokeAi } from "../lib/ai";
 
 export function FormAiChatPage() {
   const navigate = useNavigate(); const { session } = useAuth();
@@ -20,13 +21,10 @@ export function FormAiChatPage() {
     setError("");
     setLastPrompt(message.trim());
     setMessage("");
-    const { data, error: invokeError } = await supabase.functions.invoke(
-      "generate-form",
-      { body: { message: result ? `${message}\n\nFORMULARIO ACTUAL (conserva todo lo no solicitado):\n${JSON.stringify(result)}` : message } },
-    );
-    if (invokeError || data?.error)
-      setError(invokeError?.message ?? data?.error);
-    else setResult(data.form);
+    try {
+      const data = await invokeAi<{ form: any }>("generate-form", { message: result ? `${message}\n\nFORMULARIO ACTUAL (conserva todo lo no solicitado):\n${JSON.stringify(result)}` : message });
+      setResult(data.form);
+    } catch (invokeError) { setError(invokeError instanceof Error ? invokeError.message : 'No se pudo generar el formulario.'); }
     setLoading(false);
   }
   async function saveForm() {

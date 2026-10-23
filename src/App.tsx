@@ -15,6 +15,9 @@ import { DepartmentsPage } from './pages/DepartmentsPage'
 import { FormContextPage } from './pages/FormContextPage'
 import { FormAiChatPage } from './pages/FormAiChatPage'
 import { FormInboxPage } from './pages/FormInboxPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { IntegrationsPage } from './pages/IntegrationsPage'
+import { FormIntegrationsPage } from './pages/FormIntegrationsPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -32,6 +35,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboards', to: '/dashboards', icon: '▥', permission: 'dashboards.view' },
   { label: 'Usuarios y roles', to: '/usuarios', icon: '♙', permission: 'users.manage' },
   { label: 'Departamentos', to: '/departamentos', icon: '⌘', permission: 'users.manage' },
+  { label: 'Integraciones', to: '/integraciones', icon: '⇄', permission: 'integrations.view' },
   { label: 'Mis formularios', to: '/mis-formularios', icon: '✓', permission: 'forms.respond' },
   { label: 'Bandeja formularios', to: '/bandeja-formularios', icon: '▣', permission: 'forms.inbox' },
 ]
@@ -52,10 +56,12 @@ function App() {
             <Route element={<PermissionRoute permission="forms.inbox" />}><Route path="bandeja-formularios" element={<FormInboxPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId/departamentos" element={<FormDepartmentsPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId/contexto" element={<FormContextPage />} /></Route>
+            <Route element={<PermissionRoute permission="forms.edit" />}><Route path="formularios/:formId/integraciones" element={<FormIntegrationsPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.create" />}><Route path="formularios/crear-ai" element={<FormAiChatPage />} /></Route>
             <Route element={<PermissionRoute permission="users.manage" />}><Route path="departamentos" element={<DepartmentsPage />} /></Route>
             <Route element={<PermissionRoute permission="contexts.create" />}><Route path="contextos" element={<PlaceholderPage title="Contextos de formularios" description="Define el proceso, área y objetivo que orientan a la inteligencia artificial." />} /></Route>
-            <Route element={<PermissionRoute permission="dashboards.view" />}><Route path="dashboards" element={<PlaceholderPage title="Dashboards" description="Visualiza indicadores y el estado de las solicitudes." />} /></Route>
+            <Route element={<PermissionRoute permission="dashboards.view" />}><Route path="dashboards" element={<DashboardPage />} /></Route>
+            <Route element={<PermissionRoute permission="integrations.view" />}><Route path="integraciones" element={<IntegrationsPage />} /></Route>
             <Route element={<PermissionRoute permission="users.manage" />}><Route path="usuarios" element={<UsersPage />} /></Route>
             <Route element={<PermissionRoute permission="forms.respond" />}><Route path="mis-formularios" element={<ParticipantFormsPage />} /></Route>
           </Route>

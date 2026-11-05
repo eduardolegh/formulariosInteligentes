@@ -62,7 +62,10 @@ Deno.serve(async (request) => {
     if (visibleError || !visibleSubmission) throw new Error('No se encontró la respuesta o no tienes permiso para analizarla.')
     submission = visibleSubmission
     admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-    if (['approved', 'rejected', 'completed'].includes(submission.status)) throw new Error(`No se puede analizar este formulario porque ya fue ${submission.status === 'approved' ? 'aprobado' : submission.status === 'rejected' ? 'rechazado' : 'finalizado'}.`)
+    const { data: attentionForm } = await admin.from('forms').select('requires_attention,ai_enabled').eq('id', submission.form_id).single()
+    if (attentionForm?.requires_attention === false) throw new Error('Este formulario no requiere atención y no puede analizarse con inteligencia artificial.')
+    if (submission.status !== 'submitted') throw new Error('Solo las respuestas en estado Ingresado pueden analizarse con inteligencia artificial.')
+    if (attentionForm?.ai_enabled !== true) throw new Error('Este formulario no tiene habilitado el análisis con inteligencia artificial.')
 
     const [{ data: form }, { data: context }, { data: sections }, { data: answers }] = await Promise.all([
       admin.from('forms').select('name,description').eq('id', submission.form_id).single(),
@@ -70,7 +73,7 @@ Deno.serve(async (request) => {
       admin.from('form_sections').select('id,title').eq('form_id', submission.form_id).order('position'),
       admin.from('submission_answers').select('field_id,value').eq('submission_id', submission_id),
     ])
-    if (!context) throw new Error('Este formulario no tiene un contexto IA activo.')
+    if (!context || ![context.objective, context.instructions, context.rules, context.restrictions, context.expected_output].every((value) => String(value ?? '').trim())) throw new Error('Este formulario debe tener un contexto IA activo y todos sus valores configurados.')
     const sectionIds = (sections ?? []).map((section) => section.id)
     const { data: fields } = sectionIds.length ? await admin.from('form_fields').select('id,label,field_type,section_id').in('section_id', sectionIds).order('position') : { data: [] }
     const schema = { type: 'object', additionalProperties: false, required: ['suggested_status', 'observation', 'confidence'], properties: { suggested_status: { type: 'string', enum: ['approved', 'rejected'] }, observation: { type: 'string' }, confidence: { type: 'number' } } }

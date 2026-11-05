@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import './DashboardPage.css'
 import { DashboardAssistant } from './DashboardAssistant'
 import { SubmissionMap, type SubmissionMapPoint } from './SubmissionMap'
+import { LlmOperationsPanel, type LlmOperationRun } from './LlmOperationsPanel'
 
 type FormRow = { id: string; name: string; status: string }
-type Submission = { id: string; form_id: string; status: string; submitted_at: string; review_started_at: string | null; decided_at: string | null; latitude: number | null; longitude: number | null; location_accuracy_m: number | null }
+type Submission = { id: string; form_id: string; status: string; submitted_at: string; review_started_at: string | null; decided_at: string | null; latitude: number | null; longitude: number | null; location_accuracy_m: number | null; experience_rating: number | null; experience_rated_at: string | null }
 type FormDepartment = { form_id: string; department: string }
 type AiRun = { id: string; submission_id: string; form_id: string; status: 'succeeded' | 'failed'; provider: string; model: string; duration_ms: number; total_tokens: number; estimated_cost_usd: number | null; suggested_status: string | null; human_decision: string | null; started_at: string }
 type Field = { id: string; label: string; field_type: string }
@@ -26,6 +27,7 @@ export function DashboardPage() {
   const [answers, setAnswers] = useState<Answer[]>([])
   const [assistantRuns, setAssistantRuns] = useState<AssistantRun[]>([])
   const [backofficeActivity, setBackofficeActivity] = useState<BackofficeActivity[]>([])
+  const [llmOperationRuns, setLlmOperationRuns] = useState<LlmOperationRun[]>([])
   const [formId, setFormId] = useState('')
   const [department, setDepartment] = useState('')
   const [status, setStatus] = useState('')
@@ -38,13 +40,14 @@ export function DashboardPage() {
     let mounted = true
     async function load() {
       setLoading(true)
-      const [formsResult, submissionsResult, departmentsResult, aiResult, assistantResult, backofficeResult] = await Promise.all([
+      const [formsResult, submissionsResult, departmentsResult, aiResult, assistantResult, backofficeResult, llmResult] = await Promise.all([
         supabase.from('forms').select('id,name,status').order('name'),
-        supabase.from('form_submissions').select('id,form_id,status,submitted_at,review_started_at,decided_at,latitude,longitude,location_accuracy_m').order('submitted_at'),
+        supabase.from('form_submissions').select('id,form_id,status,submitted_at,review_started_at,decided_at,latitude,longitude,location_accuracy_m,experience_rating,experience_rated_at').order('submitted_at'),
         supabase.from('form_departments').select('form_id,department'),
         supabase.from('ai_analysis_runs').select('id,submission_id,form_id,status,provider,model,duration_ms,total_tokens,estimated_cost_usd,suggested_status,human_decision,started_at').order('started_at'),
         supabase.from('dashboard_assistant_runs').select('id,status,is_supported,total_tokens,estimated_cost_usd,duration_ms,created_at').order('created_at'),
         supabase.rpc('get_backoffice_dashboard_activity'),
+        supabase.rpc('get_llm_operation_runs'),
       ])
       if (!mounted) return
       setForms((formsResult.data as FormRow[] | null) ?? [])
@@ -53,7 +56,8 @@ export function DashboardPage() {
       setAiRuns((aiResult.data as AiRun[] | null) ?? [])
       setAssistantRuns((assistantResult.data as AssistantRun[] | null) ?? [])
       setBackofficeActivity((backofficeResult.data as BackofficeActivity[] | null) ?? [])
-      setError(formsResult.error?.message ?? submissionsResult.error?.message ?? departmentsResult.error?.message ?? aiResult.error?.message ?? assistantResult.error?.message ?? backofficeResult.error?.message ?? '')
+      setLlmOperationRuns((llmResult.data as LlmOperationRun[] | null) ?? [])
+      setError(formsResult.error?.message ?? submissionsResult.error?.message ?? departmentsResult.error?.message ?? aiResult.error?.message ?? assistantResult.error?.message ?? backofficeResult.error?.message ?? llmResult.error?.message ?? '')
       setLoading(false)
     }
     void load()
@@ -93,6 +97,7 @@ export function DashboardPage() {
   const filteredAi = useMemo(() => aiRuns.filter((run) => filteredIds.has(run.submission_id)), [aiRuns, filteredIds])
   const assistantCutoff = days === 'all' ? 0 : referenceTime - Number(days) * 86_400_000
   const filteredAssistant = assistantRuns.filter((run) => new Date(run.created_at).getTime() >= assistantCutoff)
+  const filteredLlmOperations = llmOperationRuns.filter((run) => !assistantCutoff || new Date(run.started_at).getTime() >= assistantCutoff)
   const assistantTokens = filteredAssistant.reduce((sum, run) => sum + run.total_tokens, 0)
   const assistantCost = filteredAssistant.reduce((sum, run) => sum + Number(run.estimated_cost_usd ?? 0), 0)
   const assistantHasCost = filteredAssistant.some((run) => run.estimated_cost_usd != null)
@@ -130,6 +135,9 @@ export function DashboardPage() {
   const successfulAi = filteredAi.filter((run) => run.status === 'succeeded')
   const comparedAi = successfulAi.filter((run) => run.human_decision && run.suggested_status)
   const agreement = comparedAi.length ? comparedAi.filter((run) => run.human_decision === run.suggested_status).length / comparedAi.length * 100 : 0
+  const ratedSubmissions = filtered.filter((submission) => submission.experience_rating != null)
+  const averageExperience = average(ratedSubmissions.map((submission) => submission.experience_rating!))
+  const experienceDistribution = [5, 4, 3, 2, 1].map((rating) => ({ rating, count: ratedSubmissions.filter((submission) => submission.experience_rating === rating).length }))
   const oldPending = filtered.filter((item) => ['submitted', 'in_review'].includes(item.status) && referenceTime - new Date(item.submitted_at).getTime() > 3 * 86_400_000)
   const selectedForm = forms.find((item) => item.id === formId)
   const mapPoints: SubmissionMapPoint[] = filtered.filter((item) => item.latitude != null && item.longitude != null).map((item) => ({ id: item.id, latitude: item.latitude!, longitude: item.longitude!, accuracy: item.location_accuracy_m, submittedAt: item.submitted_at, formName: forms.find((form) => form.id === item.form_id)?.name ?? 'Formulario', status: item.status }))
@@ -191,9 +199,10 @@ export function DashboardPage() {
     <section className="dashboard-section-heading"><div><p className="eyebrow">INTELIGENCIA ARTIFICIAL</p><h2>Rendimiento y decisiones asistidas</h2></div><small>Las métricas se generan desde la nueva instrumentación.</small></section>
     <div className="dashboard-kpis ai-kpis"><Metric label="Análisis ejecutados" value={filteredAi.length.toString()} detail={`${successfulAi.length} exitosos`} tone="blue" /><Metric label="Duración promedio" value={successfulAi.length ? `${(average(successfulAi.map((run) => run.duration_ms)) / 1000).toFixed(1)} s` : '—'} detail="tiempo de respuesta" tone="violet" /><Metric label="Coincidencia humana" value={comparedAi.length ? `${Math.round(agreement)}%` : '—'} detail={`${comparedAi.length} decisiones comparables`} tone="green" /><Metric label="Consumo de análisis" value={`${filteredAi.reduce((sum, run) => sum + run.total_tokens, 0).toLocaleString('es-GT')} tokens`} detail={filteredAi.some((run) => run.estimated_cost_usd != null) ? `$${filteredAi.reduce((sum, run) => sum + Number(run.estimated_cost_usd ?? 0), 0).toFixed(4)} estimados` : 'configure tarifas para calcular costo'} tone="amber" /></div>
     <article className="panel assistant-usage-card"><div className="assistant-usage-title"><span>✦</span><div><strong>Uso del asistente del dashboard</strong><small>Consumo generado por las preguntas del chat en el período seleccionado</small></div></div><div className="assistant-usage-stats"><div><strong>{filteredAssistant.length}</strong><small>Consultas</small></div><div><strong>{assistantTokens.toLocaleString('es-GT')}</strong><small>Tokens totales</small></div><div><strong>{filteredAssistant.length ? Math.round(assistantTokens / filteredAssistant.length).toLocaleString('es-GT') : '—'}</strong><small>Tokens por consulta</small></div><div><strong>{assistantHasCost ? `$${assistantCost.toFixed(4)}` : '—'}</strong><small>Costo estimado</small></div><div><strong>{filteredAssistant.length ? `${(average(filteredAssistant.map((run) => run.duration_ms)) / 1000).toFixed(1)} s` : '—'}</strong><small>Duración promedio</small></div><div><strong>{filteredAssistant.filter((run) => !run.is_supported).length}</strong><small>No admitidas</small></div></div></article>
+    <LlmOperationsPanel allRuns={llmOperationRuns} visibleRuns={filteredLlmOperations} />
     <div className="dashboard-grid">
       <article className="panel dashboard-panel dashboard-wide"><PanelTitle title="Ejecuciones recientes" subtitle="Proveedor, modelo, duración y decisión" /><div className="dashboard-table ai-table"><div className="dashboard-table-row head"><span>Fecha</span><span>Modelo</span><span>Resultado</span><span>Duración</span><span>Tokens</span><span>Coincidencia</span></div>{filteredAi.slice().reverse().slice(0, 8).map((run) => <div className="dashboard-table-row" key={run.id}><span>{new Date(run.started_at).toLocaleDateString('es-GT')}</span><span>{run.provider} · {run.model}</span><span className={`run-status ${run.status}`}>{run.status === 'succeeded' ? 'Exitoso' : 'Fallido'}</span><span>{(run.duration_ms / 1000).toFixed(1)} s</span><span>{run.total_tokens.toLocaleString('es-GT')}</span><strong>{run.human_decision ? (run.human_decision === run.suggested_status ? 'Sí' : 'No') : 'Pendiente'}</strong></div>)}{!filteredAi.length && <Empty text="Los nuevos análisis aparecerán aquí." />}</div></article>
-      <article className="panel dashboard-panel ai-summary"><PanelTitle title="Calidad de la asistencia" subtitle="Comparación con la decisión final" /><div className="agreement-ring" style={{ '--agreement': `${agreement * 3.6}deg` } as CSSProperties}><div><strong>{comparedAi.length ? `${Math.round(agreement)}%` : '—'}</strong><small>coincidencia</small></div></div><p>{comparedAi.length ? `${comparedAi.filter((run) => run.human_decision === run.suggested_status).length} de ${comparedAi.length} recomendaciones coincidieron con la decisión humana.` : 'Aún no hay decisiones posteriores a un análisis para realizar la comparación.'}</p></article>
+      <article className="panel dashboard-panel experience-summary"><PanelTitle title="Experiencia al responder" subtitle="Calificación proporcionada al finalizar" />{ratedSubmissions.length ? <><div className="experience-score"><span>★</span><div><strong>{averageExperience.toFixed(1)}</strong><small>de 5 · {ratedSubmissions.length} {ratedSubmissions.length === 1 ? 'calificación' : 'calificaciones'}</small></div></div><div className="experience-distribution">{experienceDistribution.map((item) => <div key={item.rating}><span>{item.rating} ★</span><i><em style={{ width: `${item.count / ratedSubmissions.length * 100}%` }} /></i><b>{item.count}</b></div>)}</div></> : <div className="experience-empty"><span>☆</span><strong>Aún no hay calificaciones</strong><p>Las opiniones aparecerán cuando las personas califiquen su experiencia después de responder.</p></div>}</article>
     </div>
 
     {selectedForm && <section className="form-insights"><div className="dashboard-section-heading"><div><p className="eyebrow">DETALLE DEL FORMULARIO</p><h2>{selectedForm.name}</h2></div><small>Distribución automática de preguntas cerradas y numéricas.</small></div><div className="insight-grid">{fields.filter((field) => ['select', 'boolean', 'number'].includes(field.field_type)).map((field) => <FieldInsight field={field} answers={answers.filter((answer) => answer.field_id === field.id && filteredIds.has(answer.submission_id))} key={field.id} />)}{!fields.some((field) => ['select', 'boolean', 'number'].includes(field.field_type)) && <div className="panel"><Empty text="Este formulario no contiene preguntas que puedan resumirse automáticamente." /></div>}</div></section>}

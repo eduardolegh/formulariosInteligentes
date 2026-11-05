@@ -9,13 +9,16 @@ type Row = {
   status: string;
   submitted_at: string;
   observation: string;
-  forms?: any;
+  forms?: { name?: string; requires_attention?: boolean; ai_enabled?: boolean } | null;
 };
+type ContextRow = { form_id: string; objective: string; instructions: string; rules: string; restrictions: string; expected_output: string };
 type Delivery = { id: string; submission_id: string; event_type: string; status: "pending" | "processing" | "succeeded" | "failed"; attempts: number; http_status: number | null; error_message: string | null; integration?: { name?: string } | null };
 export function FormInboxPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [status, setStatus] = useState("");
   const [formId, setFormId] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [forms, setForms] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,6 +29,19 @@ export function FormInboxPage() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [retryingDelivery, setRetryingDelivery] = useState<string | null>(null);
   const [trackingSubmission, setTrackingSubmission] = useState<Row | null>(null);
+  const [formsWithCompleteContext, setFormsWithCompleteContext] = useState<Set<string>>(new Set());
+
+  function hasCompleteContext(context: ContextRow) {
+    return [context.objective, context.instructions, context.rules, context.restrictions, context.expected_output]
+      .every((value) => value.trim().length > 0);
+  }
+
+  function canAnalyzeWithAi(row: Row) {
+    return row.status === "submitted"
+      && row.forms?.requires_attention !== false
+      && row.forms?.ai_enabled === true
+      && formsWithCompleteContext.has(row.form_id);
+  }
 
   async function loadDeliveries(submissionIds: string[]) {
     if (!submissionIds.length) { setDeliveries([]); return; }
@@ -41,9 +57,21 @@ export function FormInboxPage() {
 
   async function analyzeSubmission(row: Row) {
     setError("");
-    if (row.status === "approved" || row.status === "rejected" || row.status === "completed") {
+    if (row.forms?.requires_attention === false) {
+      setError("Este formulario no requiere atención y sus envíos se aprueban automáticamente sin análisis de IA.");
+      return;
+    }
+    if (row.status !== "submitted") {
       if (row.status === "completed") { setError("Este formulario ya fue finalizado y no puede analizarse nuevamente con IA."); return; }
-      setStatusNotice({ status: row.status, message: `Este formulario ya fue ${row.status === "approved" ? "aprobado" : "rechazado"} y no puede analizarse nuevamente con IA.` });
+      if (row.status === "approved" || row.status === "rejected") {
+        setStatusNotice({ status: row.status, message: `Este formulario ya fue ${row.status === "approved" ? "aprobado" : "rechazado"} y no puede analizarse nuevamente con IA.` });
+        return;
+      }
+      setError("Solo los formularios en estado Ingresado pueden analizarse con inteligencia artificial.");
+      return;
+    }
+    if (row.forms?.ai_enabled !== true || !formsWithCompleteContext.has(row.form_id)) {
+      setError("Este formulario no tiene habilitado un contexto de inteligencia artificial completo.");
       return;
     }
     setAnalyzing(row.id);
@@ -72,11 +100,17 @@ export function FormInboxPage() {
     async function load() {
       const { data, error: e } = await supabase
         .from("form_submissions")
-        .select("id,form_id,status,submitted_at,observation,forms(name)")
+        .select("id,form_id,status,submitted_at,observation,forms(name,requires_attention,ai_enabled)")
         .order("submitted_at", { ascending: false });
       if (e) setError(e.message);
       const r = (data as Row[]) ?? [];
       setRows(r);
+      const formIds = [...new Set(r.map((row) => row.form_id))];
+      const { data: contextData, error: contextError } = formIds.length
+        ? await supabase.from("form_contexts").select("form_id,objective,instructions,rules,restrictions,expected_output").in("form_id", formIds).eq("is_active", true)
+        : { data: [], error: null };
+      if (contextError) setError(`No se pudo verificar la configuración de IA: ${contextError.message}`);
+      setFormsWithCompleteContext(new Set(((contextData as ContextRow[] | null) ?? []).filter(hasCompleteContext).map((context) => context.form_id)));
       await loadDeliveries(r.map((row) => row.id));
       setForms([
         ...new Map(
@@ -91,9 +125,17 @@ export function FormInboxPage() {
     void load();
   }, []);
   const filtered = rows.filter(
-    (r) =>
-      (!status || r.status === status) && (!formId || r.form_id === formId),
+    (r) => {
+      const submittedAt = new Date(r.submitted_at);
+      const startsAfter = !dateFrom || submittedAt >= new Date(`${dateFrom}T00:00:00`);
+      const endsBefore = !dateTo || submittedAt <= new Date(`${dateTo}T23:59:59.999`);
+      return (!status || r.status === status)
+        && (!formId || r.form_id === formId)
+        && startsAfter
+        && endsBefore;
+    },
   );
+  const hasFilters = Boolean(status || formId || dateFrom || dateTo);
   return (
     <section className="module-page">
       <div className="module-heading">
@@ -128,6 +170,22 @@ export function FormInboxPage() {
             <option value="completed">Completado</option>
           </select>
         </label>
+        <label>
+          Desde
+          <input max={dateTo || undefined} onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
+        </label>
+        <label>
+          Hasta
+          <input min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
+        </label>
+        <button
+          className="inbox-clear-filters"
+          disabled={!hasFilters}
+          onClick={() => { setFormId(""); setStatus(""); setDateFrom(""); setDateTo(""); }}
+          type="button"
+        >
+          Limpiar filtros
+        </button>
       </div>
       {error && <div className="error-banner">{error}</div>}
       {loading ? (
@@ -157,7 +215,7 @@ export function FormInboxPage() {
                 <span className="inbox-actions">
                   <a className="table-link inbox-view-link" href={`/formularios/${r.form_id}/respuestas?submission=${r.id}`}>Ver respuestas</a>
                   <button className="secondary-button" onClick={() => setTrackingSubmission(r)} type="button">Flujo de estados</button>
-                  <button className="secondary-button" disabled={analyzing === r.id} onClick={() => void analyzeSubmission(r)} type="button">{analyzing === r.id ? "Analizando…" : "✦ Analizar con IA"}</button>
+                  {canAnalyzeWithAi(r) && <button className="secondary-button" disabled={analyzing === r.id} onClick={() => void analyzeSubmission(r)} type="button">{analyzing === r.id ? "Analizando…" : "✦ Analizar con IA"}</button>}
                 </span>
               </div>
               {r.observation && <div className="inbox-observation"><strong>Observación</strong><span>{r.observation}</span></div>}

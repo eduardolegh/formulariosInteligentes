@@ -11,7 +11,7 @@ export function ParticipantFormsPage() {
 
   useEffect(() => {
     let mounted = true
-    supabase.from('forms').select('id, name, description, visibility, share_token').eq('status', 'published').order('name').then(({ data, error: queryError }) => {
+    supabase.from('forms').select('id, name, description, visibility, share_token').eq('status', 'published').eq('is_active', true).order('name').then(({ data, error: queryError }) => {
       if (!mounted) return
       if (queryError) setError(`No se pudieron cargar tus formularios: ${queryError.message}`)
       setForms((data as ParticipantForm[] | null) ?? [])

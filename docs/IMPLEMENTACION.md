@@ -4,7 +4,7 @@ Este documento registra las decisiones técnicas y los cambios implementados en 
 
 ## 1. Estado actual
 
-La primera versión funcional de la plataforma incluye:
+El estado funcional de la plataforma incluye:
 
 - Aplicación web React.
 - Panel administrativo responsive.
@@ -17,10 +17,21 @@ La primera versión funcional de la plataforma incluye:
 - Políticas iniciales de Row Level Security.
 - Directorio de usuarios.
 - Creación de usuarios mediante Edge Function.
-- Módulo inicial de formularios con secciones y preguntas.
+- Constructor de formularios con secciones, preguntas, edición visual y generación asistida.
 - Publicación pública/privada y enlaces compartibles.
 - Rol Participante y pantalla de respuesta.
 - Registro de envíos y respuestas.
+- Bandeja BackOffice, filtros, decisiones, observaciones y flujo de estados.
+- Formularios con atención humana o aprobación automática.
+- Alta y baja lógica de formularios.
+- Contextos versionados y análisis de respuestas mediante IA.
+- Dashboard operativo, geográfico, de BackOffice y de consumo del LLM.
+- Asistente del dashboard con consultas permitidas y acceso restringido a métricas.
+- Integraciones REST por evento con trazabilidad y copia del JSON enviado.
+- Selección de proveedor de IA mediante variable de entorno: OpenAI u Ollama.
+- Fotografías, PDF y documentos de identidad en almacenamiento privado.
+- Validación visual y extracción estructurada de identificaciones.
+- Calificación de experiencia al completar una respuesta.
 - Migraciones SQL versionadas.
 - Documentación y diagramas versionados en Git.
 
@@ -41,7 +52,8 @@ La primera versión funcional de la plataforma incluye:
 - Supabase PostgreSQL.
 - Supabase Row Level Security (RLS).
 - Supabase Edge Functions.
-- Supabase Storage, reservado para archivos futuros.
+- Supabase Storage para fotografías, documentos de identidad y PDF privados.
+- Backend Node.js opcional para ejecutar modelos locales mediante Ollama.
 
 ### Herramientas
 
@@ -55,22 +67,17 @@ La primera versión funcional de la plataforma incluye:
 
 ```text
 React + Vite
-    ├── Login
-    ├── Panel administrativo
-    ├── Navegación protegida
-    ├── Usuarios y roles
-    └── Módulos futuros
+    ├── Administración y BackOffice
+    ├── Respuesta pública/privada
+    ├── Dashboards y mapas
+    └── Captura de archivos
             ↓
-Supabase JS Client
-            ↓
-Supabase Auth + PostgreSQL + RLS
-            ↓
-Supabase Edge Functions
-            ↓
-APIs externas y operaciones administrativas
+Supabase Auth + PostgreSQL + RLS + Storage
+            ├── Edge Functions → OpenAI / integraciones REST
+            └── Backend Node.js opcional → Ollama
 ```
 
-La aplicación no utiliza un backend tradicional separado. Las operaciones que requieren privilegios elevados se ejecutan mediante Edge Functions.
+En el modo administrado, las operaciones privilegiadas se ejecutan mediante Edge Functions. En el modo local, un backend Node.js conserva las validaciones de sesión y permisos, consulta Supabase con credenciales del servidor y dirige las operaciones de IA hacia Ollama.
 
 ## 4. Estructura del repositorio
 

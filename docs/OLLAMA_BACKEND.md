@@ -12,7 +12,7 @@ El cambio no tiene una ruta de respaldo silenciosa. Si Ollama o el backend no es
 1. Instala Ollama desde su sitio oficial y descarga un modelo compatible con salidas estructuradas:
 
    ```bash
-   ollama pull qwen2.5:7b
+   ollama pull qwen3.5:9b
    ```
 
 2. Crea la configuración privada del backend:
@@ -56,11 +56,11 @@ Cambia el valor en `.env.local` y reinicia Vite:
 VITE_AI_TRANSPORT=supabase
 ```
 
-El backend local cubre la generación de formularios, el análisis de respuestas y el asistente del dashboard. Valida la sesión de Supabase, respeta los permisos existentes y registra proveedor, modelo, duración y tokens. En Ollama, `estimated_cost_usd` queda sin valor porque no existe una tarifa por token; los costos de hardware y electricidad no se calculan automáticamente.
+El backend local cubre la generación y edición de formularios, el análisis de respuestas, el asistente del dashboard y la validación visual de documentos de identidad. Las operaciones administrativas validan la sesión de Supabase y respetan los permisos existentes. La validación documental también admite formularios públicos, pero comprueba el enlace, el campo y la configuración antes de llamar al modelo. Todas las operaciones registran proveedor, modelo, duración y tokens. En Ollama, `estimated_cost_usd` queda sin valor porque no existe una tarifa por token; los costos de hardware y electricidad no se calculan automáticamente.
 
 ## Variables opcionales
 
-- `OLLAMA_MODEL`: modelo local que se utilizará en las tres operaciones.
+- `OLLAMA_MODEL`: modelo local que se utilizará en las operaciones. Para validar documentos debe admitir entrada visual.
 - `OLLAMA_BASE_URL`: dirección de Ollama si se ejecuta en otro equipo o contenedor.
 - `FRONTEND_ORIGIN`: orígenes permitidos, separados por comas.
 - `BACKEND_PORT`: puerto del backend local.

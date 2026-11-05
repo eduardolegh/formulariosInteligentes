@@ -41,12 +41,16 @@ Deno.serve(async (request) => {
     const inputRate = Number(inputRateValue); const outputRate = Number(outputRateValue)
     const canEstimate = Boolean(inputRateValue && outputRateValue) && Number.isFinite(inputRate) && Number.isFinite(outputRate)
     const inputTokens = usage.input_tokens ?? 0; const outputTokens = usage.output_tokens ?? 0
-    await admin.from('dashboard_assistant_runs').insert({
+    const runValues = {
       requested_by: requestedBy, question, intent: classification?.intent ?? 'error', is_supported: classification ? !['unsupported'].includes(classification.intent) : false,
       answer, provider: 'openai', model, status, started_at: startedAt.toISOString(), completed_at: new Date().toISOString(), duration_ms: Math.max(0, Math.round(performance.now() - startedMs)),
       input_tokens: inputTokens, output_tokens: outputTokens, total_tokens: usage.total_tokens ?? inputTokens + outputTokens,
       estimated_cost_usd: canEstimate ? (inputTokens * inputRate + outputTokens * outputRate) / 1_000_000 : null, error_message: errorMessage,
-    })
+    }
+    await Promise.all([
+      admin.from('dashboard_assistant_runs').insert(runValues),
+      admin.from('llm_operation_runs').insert({ requested_by: requestedBy, operation_type: 'dashboard_assistant', provider: 'openai', model, status, started_at: runValues.started_at, completed_at: runValues.completed_at, duration_ms: runValues.duration_ms, input_tokens: runValues.input_tokens, output_tokens: runValues.output_tokens, total_tokens: runValues.total_tokens, estimated_cost_usd: runValues.estimated_cost_usd, error_message: errorMessage, metadata: { intent: classification?.intent ?? 'error', supported: classification ? classification.intent !== 'unsupported' : false } }),
+    ])
   }
 
   try {

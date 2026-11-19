@@ -11,6 +11,7 @@ type FormRecord = {
   share_token: string;
   capture_coordinates: boolean;
   requires_attention: boolean;
+  tracking_enabled: boolean;
 };
 type Section = {
   id: string;
@@ -63,6 +64,7 @@ export function FormEditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingCoordinates, setIsSavingCoordinates] = useState(false);
   const [isSavingAttention, setIsSavingAttention] = useState(false);
+  const [isSavingTracking, setIsSavingTracking] = useState(false);
   const [error, setError] = useState("");
   async function loadEditor() {
     if (!formId) return;
@@ -70,7 +72,7 @@ export function FormEditorPage() {
       await Promise.all([
         supabase
           .from("forms")
-          .select("id,name,description,status,visibility,share_token,capture_coordinates,requires_attention")
+          .select("id,name,description,status,visibility,share_token,capture_coordinates,requires_attention,tracking_enabled")
           .eq("id", formId)
           .single(),
         supabase
@@ -285,6 +287,18 @@ export function FormEditorPage() {
     else setForm({ ...form, requires_attention: requiresAttention });
     setIsSavingAttention(false);
   }
+  async function updateTracking(trackingEnabled: boolean) {
+    if (!form || form.tracking_enabled === trackingEnabled) return;
+    setIsSavingTracking(true);
+    setError("");
+    const { error: updateError } = await supabase
+      .from("forms")
+      .update({ tracking_enabled: trackingEnabled, updated_at: new Date().toISOString() })
+      .eq("id", form.id);
+    if (updateError) setError(updateError.message);
+    else setForm({ ...form, tracking_enabled: trackingEnabled });
+    setIsSavingTracking(false);
+  }
   const addOption = () => {
     const o = optionDraft.trim();
     if (o && !fieldOptions.includes(o)) setFieldOptions([...fieldOptions, o]);
@@ -412,6 +426,18 @@ export function FormEditorPage() {
           <input checked={form.capture_coordinates} disabled={isSavingCoordinates} onChange={(event) => void updateCoordinateCapture(event.target.checked)} type="checkbox" />
           <span aria-hidden="true" />
           <em>{isSavingCoordinates ? "Guardando…" : form.capture_coordinates ? "Activa" : "Inactiva"}</em>
+        </label>
+      </div>
+      <div className={`coordinate-capture-setting tracking-setting ${form.tracking_enabled ? "enabled" : ""}`}>
+        <div className="coordinate-setting-icon" aria-hidden="true">✉</div>
+        <div>
+          <strong>Seguimiento</strong>
+          <p>{form.tracking_enabled ? "Solicita un correo obligatorio, genera un código y permite consultar públicamente el avance del envío." : "Actívalo para ofrecer un código, enlace de consulta y notificación por correo al finalizar."}</p>
+        </div>
+        <label className="coordinate-setting-switch">
+          <input checked={form.tracking_enabled} disabled={isSavingTracking} onChange={(event) => void updateTracking(event.target.checked)} type="checkbox" />
+          <span aria-hidden="true" />
+          <em>{isSavingTracking ? "Guardando…" : form.tracking_enabled ? "Activo" : "Inactivo"}</em>
         </label>
       </div>
       {error && <div className="error-banner">{error}</div>}

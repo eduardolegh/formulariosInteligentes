@@ -15,7 +15,8 @@ export function FormAiChatPage() {
   const [lastPrompt, setLastPrompt] = useState("");
   const [captureCoordinates, setCaptureCoordinates] = useState(false);
   const [requiresAttention, setRequiresAttention] = useState(true);
-  useEffect(() => { const id = searchParams.get('edit'); if (!id) return; async function load() { const { data: form } = await supabase.from('forms').select('name,description,ai_enabled,capture_coordinates,requires_attention').eq('id', id).single(); const { data: sections } = await supabase.from('form_sections').select('id,title,description,position').eq('form_id', id).order('position'); const ids = (sections ?? []).map((section) => section.id); const { data: fields } = ids.length ? await supabase.from('form_fields').select('section_id,label,field_type,is_required,position,config').in('section_id', ids).order('position') : { data: [] }; if (form) { setCaptureCoordinates(Boolean(form.capture_coordinates)); setRequiresAttention(form.requires_attention !== false); setResult({ ...form, sections: (sections ?? []).map((section) => ({ ...section, fields: (fields ?? []).filter((field) => field.section_id === section.id).map((field) => ({ ...field, options: field.config?.options ?? [], request_document_photo: Boolean(field.config?.request_document_photo) })) })) }) } } void load() }, [searchParams]);
+  const [trackingEnabled, setTrackingEnabled] = useState(false);
+  useEffect(() => { const id = searchParams.get('edit'); if (!id) return; async function load() { const { data: form } = await supabase.from('forms').select('name,description,ai_enabled,capture_coordinates,requires_attention,tracking_enabled').eq('id', id).single(); const { data: sections } = await supabase.from('form_sections').select('id,title,description,position').eq('form_id', id).order('position'); const ids = (sections ?? []).map((section) => section.id); const { data: fields } = ids.length ? await supabase.from('form_fields').select('section_id,label,field_type,is_required,position,config').in('section_id', ids).order('position') : { data: [] }; if (form) { setCaptureCoordinates(Boolean(form.capture_coordinates)); setRequiresAttention(form.requires_attention !== false); setTrackingEnabled(Boolean(form.tracking_enabled)); setResult({ ...form, sections: (sections ?? []).map((section) => ({ ...section, fields: (fields ?? []).filter((field) => field.section_id === section.id).map((field) => ({ ...field, options: field.config?.options ?? [], request_document_photo: Boolean(field.config?.request_document_photo) })) })) }) } } void load() }, [searchParams]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!message.trim()) return;
@@ -33,7 +34,7 @@ export function FormAiChatPage() {
   async function saveForm() {
     if (!result || !session) return; setSaving(true); setError('');
     const editId = searchParams.get('edit');
-    const { data: form, error: formError } = editId ? await supabase.from('forms').update({ name: result.name, description: result.description ?? '', capture_coordinates: captureCoordinates, requires_attention: requiresAttention, ai_enabled: requiresAttention ? Boolean(result.ai_enabled) : false, updated_at: new Date().toISOString() }).eq('id', editId).select('id').single() : await supabase.from('forms').insert({ name: result.name, description: result.description ?? '', capture_coordinates: captureCoordinates, requires_attention: requiresAttention, ai_enabled: requiresAttention ? Boolean(result.ai_enabled) : false, created_by: session.user.id }).select('id').single();
+    const { data: form, error: formError } = editId ? await supabase.from('forms').update({ name: result.name, description: result.description ?? '', capture_coordinates: captureCoordinates, requires_attention: requiresAttention, tracking_enabled: trackingEnabled, ai_enabled: requiresAttention ? Boolean(result.ai_enabled) : false, updated_at: new Date().toISOString() }).eq('id', editId).select('id').single() : await supabase.from('forms').insert({ name: result.name, description: result.description ?? '', capture_coordinates: captureCoordinates, requires_attention: requiresAttention, tracking_enabled: trackingEnabled, ai_enabled: requiresAttention ? Boolean(result.ai_enabled) : false, created_by: session.user.id }).select('id').single();
     if (formError || !form) { setError(formError?.message ?? 'No se pudo crear el formulario.'); setSaving(false); return }
     if (editId) await supabase.from('form_sections').delete().eq('form_id', editId);
     for (const [sectionIndex, section] of (result.sections ?? []).entries()) {
@@ -84,6 +85,11 @@ export function FormAiChatPage() {
                   <input checked={captureCoordinates} onChange={(event) => setCaptureCoordinates(event.target.checked)} type="checkbox" />
                   <span className="create-coordinate-check" aria-hidden="true">{captureCoordinates ? "✓" : "⌖"}</span>
                   <span><strong>Captura de coordenadas</strong><small>Hacer obligatoria la ubicación antes de enviar el formulario.</small></span>
+                </label>
+                <label className={`create-coordinate-option ${trackingEnabled ? "enabled" : ""}`}>
+                  <input checked={trackingEnabled} onChange={(event) => setTrackingEnabled(event.target.checked)} type="checkbox" />
+                  <span className="create-coordinate-check" aria-hidden="true">{trackingEnabled ? "✓" : "✉"}</span>
+                  <span><strong>Seguimiento</strong><small>Solicitar correo y enviar un código para consultar el avance.</small></span>
                 </label>
                 {result.sections?.map((section: any) => (
                   <div className="ai-preview-section" key={section.title}>

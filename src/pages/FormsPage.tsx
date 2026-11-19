@@ -28,6 +28,7 @@ export function FormsPage() {
   const [description, setDescription] = useState("");
   const [captureCoordinates, setCaptureCoordinates] = useState(false);
   const [requiresAttention, setRequiresAttention] = useState(true);
+  const [trackingEnabled, setTrackingEnabled] = useState(false);
   const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>("active");
   const [lifecycleConfirmation, setLifecycleConfirmation] = useState<LifecycleConfirmation | null>(null);
   const [updatingLifecycleId, setUpdatingLifecycleId] = useState<string | null>(null);
@@ -65,6 +66,7 @@ export function FormsPage() {
         created_by: session.user.id,
         capture_coordinates: captureCoordinates,
         requires_attention: requiresAttention,
+        tracking_enabled: trackingEnabled,
       })
       .select("id")
       .single();
@@ -79,6 +81,7 @@ export function FormsPage() {
     setDescription("");
     setCaptureCoordinates(false);
     setRequiresAttention(true);
+    setTrackingEnabled(false);
     setIsCreateOpen(false);
     setIsSubmitting(false);
     navigate(`/formularios/${data.id}`);
@@ -175,6 +178,11 @@ export function FormsPage() {
             <input checked={captureCoordinates} onChange={(event) => setCaptureCoordinates(event.target.checked)} type="checkbox" />
             <span className="create-coordinate-check" aria-hidden="true">{captureCoordinates ? "✓" : "⌖"}</span>
             <span><strong>Captura de coordenadas</strong><small>La persona deberá compartir su latitud y longitud antes de enviar el formulario.</small></span>
+          </label>
+          <label className={`create-coordinate-option ${trackingEnabled ? "enabled" : ""}`}>
+            <input checked={trackingEnabled} onChange={(event) => setTrackingEnabled(event.target.checked)} type="checkbox" />
+            <span className="create-coordinate-check" aria-hidden="true">{trackingEnabled ? "✓" : "✉"}</span>
+            <span><strong>Seguimiento</strong><small>Solicita un correo, genera un código y envía un enlace para consultar el avance.</small></span>
           </label>
           <div className="form-actions">
             <button

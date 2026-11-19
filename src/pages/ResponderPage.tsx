@@ -8,7 +8,7 @@ import { IdentityDocumentField } from './IdentityDocumentField'
 import { DocumentAttachmentField } from './DocumentAttachmentField'
 import type { IdentityDocumentValue, PendingAttachment } from '../types/attachments'
 
-type FormInfo = { id: string; name: string; description: string; visibility: 'public' | 'private'; capture_coordinates: boolean; is_active: boolean }
+type FormInfo = { id: string; name: string; description: string; visibility: 'public' | 'private'; capture_coordinates: boolean; tracking_enabled: boolean; is_active: boolean }
 type Section = { id: string; title: string; description: string; position: number }
 type Field = { id: string; section_id: string; label: string; field_type: string; is_required: boolean; position: number; config?: { options?: string[]; request_document_photo?: boolean; max_size_mb?: number } }
 type SharedLocation = { latitude: number; longitude: number; accuracy: number; capturedAt: string }
@@ -30,6 +30,12 @@ export function ResponderPage() {
   const [experienceRating, setExperienceRating] = useState<number | null>(null)
   const [hoveredRating, setHoveredRating] = useState(0)
   const [ratingState, setRatingState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [trackingEmail, setTrackingEmail] = useState('')
+  const [trackingEmailError, setTrackingEmailError] = useState('')
+  const [trackingCode, setTrackingCode] = useState<string | null>(null)
+  const [trackingToken, setTrackingToken] = useState<string | null>(null)
+  const [trackingEmailState, setTrackingEmailState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const [trackingCodeCopied, setTrackingCodeCopied] = useState(false)
   const [error, setError] = useState('')
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const [sharedLocation, setSharedLocation] = useState<SharedLocation | null>(null)
@@ -43,7 +49,7 @@ export function ResponderPage() {
     let mounted = true
     async function load() {
       if (!shareToken) return
-      const { data: formData, error: formError } = await supabase.from('forms').select('id, name, description, visibility, capture_coordinates, is_active').eq('share_token', shareToken).eq('status', 'published').eq('is_active', true).single()
+      const { data: formData, error: formError } = await supabase.from('forms').select('id, name, description, visibility, capture_coordinates, tracking_enabled, is_active').eq('share_token', shareToken).eq('status', 'published').eq('is_active', true).single()
       if (formError || !formData) {
         const { data: availability } = await supabase.rpc('get_form_availability', { share_token_arg: shareToken })
         if (mounted) {
@@ -70,6 +76,13 @@ export function ResponderPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!form) return
+    const normalizedTrackingEmail = trackingEmail.trim().toLowerCase()
+    if (form.tracking_enabled && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedTrackingEmail)) {
+      setTrackingEmailError('Ingresa un correo electrónico válido para recibir el seguimiento.')
+      setError('Revisa el correo de seguimiento antes de enviar el formulario.')
+      document.querySelector<HTMLElement>('.response-tracking-email-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     const nextValidationErrors: Record<string, string> = {}
     for (const field of fields) {
       if (field.field_type === 'identity_document') {
@@ -101,9 +114,13 @@ export function ResponderPage() {
       return
     }
     setValidationErrors({})
+    setTrackingEmailError('')
     setIsSubmitting(true); setError('')
     const submissionId = crypto.randomUUID()
     const ratingToken = crypto.randomUUID()
+    const nextTrackingToken = form.tracking_enabled ? crypto.randomUUID() : null
+    const compactTrackingCode = form.tracking_enabled ? crypto.randomUUID().replaceAll('-', '').slice(0, 16).toUpperCase() : null
+    const nextTrackingCode = compactTrackingCode ? `FI-${compactTrackingCode.slice(0, 8)}-${compactTrackingCode.slice(8)}` : null
     const { error: submissionError } = await supabase.from('form_submissions').insert({
       id: submissionId,
       form_id: form.id,
@@ -113,6 +130,9 @@ export function ResponderPage() {
       location_accuracy_m: sharedLocation?.accuracy ?? null,
       location_captured_at: sharedLocation?.capturedAt ?? null,
       experience_rating_token: ratingToken,
+      tracking_email: form.tracking_enabled ? normalizedTrackingEmail : null,
+      tracking_code: nextTrackingCode,
+      tracking_token: nextTrackingToken,
     })
     if (submissionError) {
       const inactiveMessage = submissionError.message.toLowerCase().includes('de baja')
@@ -138,6 +158,13 @@ export function ResponderPage() {
     })
     const { error: answersError } = answerRows.length ? await supabase.from('submission_answers').insert(answerRows) : { error: null }
     if (answersError) { setError(`No se pudieron guardar las respuestas: ${answersError.message}`); setIsSubmitting(false); return }
+    if (form.tracking_enabled && nextTrackingToken) {
+      setTrackingCode(nextTrackingCode)
+      setTrackingToken(nextTrackingToken)
+      setTrackingEmailState('sending')
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-tracking-email', { body: { submission_id: submissionId, tracking_token: nextTrackingToken } })
+      setTrackingEmailState(emailError || emailResult?.error ? 'failed' : 'sent')
+    }
     try { await dispatchSubmissionIntegrations(submissionId) } catch { /* La entrega queda pendiente y puede revisarse desde la bandeja. */ }
     if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current)
     locationWatchRef.current = null
@@ -159,6 +186,12 @@ export function ResponderPage() {
     setAnswers((current) => ({ ...current, [fieldId]: value }))
     setValidationErrors((current) => { if (!current[fieldId]) return current; const next = { ...current }; delete next[fieldId]; return next })
     if (error === 'Revisa las preguntas marcadas antes de enviar el formulario.') setError('')
+  }
+  async function copyTrackingCode() {
+    if (!trackingCode) return
+    await navigator.clipboard?.writeText(trackingCode)
+    setTrackingCodeCopied(true)
+    window.setTimeout(() => setTrackingCodeCopied(false), 1800)
   }
   function updateIdentity(fieldId: string, value: IdentityDocumentValue) {
     setIdentityAnswers((current) => ({ ...current, [fieldId]: value }))
@@ -239,7 +272,15 @@ export function ResponderPage() {
       <span className="response-complete-label">ENVÍO COMPLETADO</span>
       <h1>¡Gracias por responder!</h1>
       <p>Tu información fue enviada y registrada correctamente.</p>
-      <div className="response-complete-message"><span aria-hidden="true">✓</span><div><strong>El proceso ha finalizado</strong><small>Ya puedes cerrar esta página de forma segura.</small></div></div>
+      <div className="response-complete-message"><span aria-hidden="true">✓</span><div><strong>{trackingCode ? 'Tu solicitud quedó registrada' : 'El proceso ha finalizado'}</strong><small>{trackingCode ? 'Conserva el código para consultar cualquier cambio de estado.' : 'Ya puedes cerrar esta página de forma segura.'}</small></div></div>
+      {trackingCode && trackingToken && <div className="response-tracking-result">
+        <span className="response-experience-label">SEGUIMIENTO DE LA SOLICITUD</span>
+        <strong>Guarda tu código</strong>
+        <p>Podrás consultar el avance sin iniciar sesión.</p>
+        <div className="response-tracking-code"><code>{trackingCode}</code><button onClick={() => void copyTrackingCode()} type="button">{trackingCodeCopied ? 'Copiado' : 'Copiar'}</button></div>
+        <a className="secondary-button response-tracking-link" href={`/seguimiento/${trackingToken}`}>Consultar seguimiento</a>
+        <div className={`response-tracking-email-state ${trackingEmailState}`}><span aria-hidden="true">{trackingEmailState === 'sent' ? '✓' : trackingEmailState === 'failed' ? '!' : '…'}</span><div><strong>{trackingEmailState === 'sent' ? 'Código enviado por correo' : trackingEmailState === 'failed' ? 'No pudimos enviar el correo' : 'Enviando correo…'}</strong><small>{trackingEmailState === 'sent' ? `Enviamos el acceso a ${trackingEmail}.` : trackingEmailState === 'failed' ? 'Tu código sigue siendo válido. Guárdalo o copia el enlace.' : 'Espera un momento mientras confirmamos la entrega.'}</small></div></div>
+      </div>}
       <div className="response-experience-rating">
         <span className="response-experience-label">TU EXPERIENCIA</span>
         <strong>{ratingState === 'saved' ? '¡Gracias por tu calificación!' : '¿Cómo fue responder este formulario?'}</strong>
@@ -301,6 +342,10 @@ export function ResponderPage() {
         {locationState === 'shared' ? <button className="response-location-stop" onClick={stopLocation} type="button">Detener</button> : <button className="secondary-button" disabled={locationState === 'requesting'} onClick={requestLocation} type="button">{locationState === 'requesting' ? 'Capturando…' : sharedLocation ? 'Capturar de nuevo' : 'Capturar ubicación'}</button>}
       </section>}
       <form noValidate onSubmit={submit}>
+        {form.tracking_enabled && <section className={`response-tracking-email-card ${trackingEmailError ? 'invalid' : ''}`}>
+          <div className="response-tracking-email-icon" aria-hidden="true">✉</div>
+          <div><span className="response-field-label">Correo para seguimiento <b aria-label="obligatorio">*</b></span><p>Te enviaremos un código y un enlace para consultar el avance de esta solicitud.</p><input aria-invalid={Boolean(trackingEmailError)} autoComplete="email" onChange={(event) => { setTrackingEmail(event.target.value); setTrackingEmailError(''); }} placeholder="nombre@correo.com" type="email" value={trackingEmail} />{trackingEmailError && <span className="response-field-error" role="alert"><i aria-hidden="true">!</i>{trackingEmailError}</span>}</div>
+        </section>}
         {sections.map((section, sectionIndex) => <section className="response-section" key={section.id}>
           <div className="response-section-heading"><span>{String(sectionIndex + 1).padStart(2, '0')}</span><div><h2>{section.title}</h2>{section.description && <p>{section.description}</p>}</div></div>
           <div className="response-fields">

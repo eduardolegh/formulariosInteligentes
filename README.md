@@ -23,6 +23,7 @@ Sistema web para diseñar, publicar, responder y atender formularios con intelig
 - Preguntas de fotografía, documento de identidad y documento PDF adjunto.
 - Validación visual del frente de una identificación y extracción estructurada mediante OpenAI u Ollama.
 - Archivos privados en Supabase Storage, con vista previa en modal y descarga segura de PDF.
+- Seguimiento público opcional mediante código, enlace directo y correo transaccional con Resend.
 
 ## Tecnologías
 
@@ -118,7 +119,7 @@ La interfaz publicada en Internet no puede acceder normalmente al Ollama de `127
 
 ## Base de datos y migraciones
 
-Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `029`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
+Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `030`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
 
 Las últimas incorporan:
 
@@ -129,6 +130,7 @@ Las últimas incorporan:
 - `027`: alta y baja de formularios.
 - `028`: documentos de identidad, PDF y bucket privado `submission-files`.
 - `029`: autorización segura de adjuntos en respuestas públicas.
+- `030`: seguimiento público, código seguro y auditoría de correos.
 
 No se debe ejecutar una migración manualmente y después volver a aplicarla sin revisar previamente el historial del proyecto.
 
@@ -149,6 +151,16 @@ Las imágenes y los PDF nuevos se almacenan en el bucket privado `submission-fil
 
 La validación de identidad exige frente o página principal, retrato visible, cuatro datos visibles, confianza mínima del 85 % y, para DPI, un número de 13 dígitos. Esta revisión confirma que la captura parece un documento legible; no certifica autenticidad legal ni consulta registros gubernamentales.
 
+## Seguimiento público
+
+Los formularios pueden solicitar un correo de seguimiento y generar un código independiente del identificador interno. El correo se envía mediante Resend desde una Edge Function y el portal público expone únicamente estados y fechas.
+
+```bash
+npx supabase functions deploy send-tracking-email --no-verify-jwt
+```
+
+Consulta la configuración y las pruebas en [Seguimiento público](docs/SEGUIMIENTO_PUBLICO.md).
+
 ## Verificación antes de publicar
 
 ```bash
@@ -167,6 +179,7 @@ También se recomienda probar formularios públicos y privados, respuestas anón
 - [Documentos y archivos adjuntos](docs/DOCUMENTOS_ADJUNTOS.md)
 - [Integraciones externas](docs/INTEGRACIONES_EXTERNAS.md)
 - [Geolocalización y mapa](docs/GEOLOCATION_MAP.md)
+- [Seguimiento público](docs/SEGUIMIENTO_PUBLICO.md)
 - [Planteamiento del proyecto](docs/PLANTEAMIENTO.md)
 - [Diagramas](docs/diagramas/README.md)
 - [Decisiones técnicas](docs/decisiones/README.md)

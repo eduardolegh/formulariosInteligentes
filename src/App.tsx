@@ -18,6 +18,7 @@ import { FormInboxPage } from './pages/FormInboxPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { IntegrationsPage } from './pages/IntegrationsPage'
 import { FormIntegrationsPage } from './pages/FormIntegrationsPage'
+import { PublicTrackingPage } from './pages/PublicTrackingPage'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -46,6 +47,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/responder/:shareToken" element={<ResponderPage />} />
+        <Route path="/seguimiento" element={<PublicTrackingPage />} />
+        <Route path="/seguimiento/:trackingToken" element={<PublicTrackingPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
             <Route index element={<OverviewPage />} />

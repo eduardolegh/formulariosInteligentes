@@ -13,7 +13,9 @@ Esta funcionalidad permite que un formulario solicite un correo electrónico, ge
 5. La confirmación muestra el código aunque el proveedor de correo no esté disponible.
 6. El solicitante consulta desde `/seguimiento` o desde `/seguimiento/:token`.
 
-El portal solo muestra nombre del formulario, estado y fechas. No expone respuestas, observaciones internas, correo, identificadores de base de datos ni usuarios BackOffice.
+La vista principal solo muestra nombre del formulario, estado y fechas. Las respuestas se consultan bajo demanda con el mismo código o token secreto; nunca se exponen observaciones internas, correo, identificadores de base de datos ni usuarios BackOffice.
+
+El solicitante puede abrir **Ver respuestas** después de consultar correctamente el seguimiento. El portal muestra textos y datos estructurados; para fotografías y PDF indica que el archivo fue recibido y su nombre, pero no publica enlaces al bucket privado.
 
 ## Base de datos
 
@@ -30,6 +32,12 @@ La migración agrega:
 - Tabla `submission_tracking_emails` para auditar envíos.
 - Validación de los datos de seguimiento.
 - Función pública restringida `get_public_submission_tracking`.
+
+Después de aplicar `030`, ejecutar también:
+
+```text
+supabase/migrations/031_public_tracking_answers.sql
+```
 
 ## Secretos
 

@@ -119,7 +119,7 @@ La interfaz publicada en Internet no puede acceder normalmente al Ollama de `127
 
 ## Base de datos y migraciones
 
-Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `030`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
+Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `031`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
 
 Las últimas incorporan:
 
@@ -131,6 +131,7 @@ Las últimas incorporan:
 - `028`: documentos de identidad, PDF y bucket privado `submission-files`.
 - `029`: autorización segura de adjuntos en respuestas públicas.
 - `030`: seguimiento público, código seguro y auditoría de correos.
+- `031`: consulta protegida de respuestas desde el portal de seguimiento.
 
 No se debe ejecutar una migración manualmente y después volver a aplicarla sin revisar previamente el historial del proyecto.
 

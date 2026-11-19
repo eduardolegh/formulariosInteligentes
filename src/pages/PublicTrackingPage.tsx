@@ -10,6 +10,8 @@ type TrackingResult = {
   last_updated_at: string
   events: TrackingEvent[]
 }
+type PublicAnswer = { section_title: string; question: string; field_type: string; value: unknown }
+type ActiveLookup = { code: string | null; token: string | null }
 
 const statusLabels: Record<string, string> = {
   submitted: 'Solicitud recibida',
@@ -34,11 +36,20 @@ export function PublicTrackingPage() {
   const [loading, setLoading] = useState(Boolean(trackingToken))
   const [searched, setSearched] = useState(Boolean(trackingToken))
   const [error, setError] = useState('')
+  const [activeLookup, setActiveLookup] = useState<ActiveLookup | null>(null)
+  const [answers, setAnswers] = useState<PublicAnswer[]>([])
+  const [answersOpen, setAnswersOpen] = useState(false)
+  const [answersLoading, setAnswersLoading] = useState(false)
+  const [answersError, setAnswersError] = useState('')
 
   async function lookup(values: { code?: string; token?: string }) {
     setLoading(true)
     setError('')
     setSearched(true)
+    setAnswersOpen(false)
+    setAnswers([])
+    setAnswersError('')
+    setActiveLookup(null)
     const token = values.token?.trim() || null
     if (token && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) {
       setResult(null)
@@ -58,6 +69,7 @@ export function PublicTrackingPage() {
       setError('No encontramos una solicitud con esos datos. Revisa el código e inténtalo nuevamente.')
     } else {
       setResult(data as TrackingResult)
+      setActiveLookup({ code: values.code?.trim().toUpperCase() || null, token })
     }
     setLoading(false)
   }
@@ -78,6 +90,24 @@ export function PublicTrackingPage() {
       return
     }
     void lookup({ code: normalized })
+  }
+
+  async function openAnswers() {
+    if (!activeLookup) return
+    setAnswersOpen(true)
+    if (answers.length) return
+    setAnswersLoading(true)
+    setAnswersError('')
+    const { data, error: answersLookupError } = await supabase.rpc('get_public_submission_answers', {
+      tracking_code_arg: activeLookup.code,
+      tracking_token_arg: activeLookup.token,
+    })
+    if (answersLookupError || !data) {
+      setAnswersError('No fue posible cargar las respuestas en este momento.')
+    } else {
+      setAnswers(((data as { answers?: PublicAnswer[] }).answers ?? []))
+    }
+    setAnswersLoading(false)
   }
 
   const currentStatus = result?.current_status ?? ''
@@ -109,6 +139,7 @@ export function PublicTrackingPage() {
           <span className={`public-tracking-status ${currentStatus}`}>{statusLabels[currentStatus] ?? currentStatus}</span>
         </div>
         <div className={`public-tracking-current ${currentStatus}`}><span aria-hidden="true">{['approved', 'completed'].includes(currentStatus) ? '✓' : currentStatus === 'rejected' ? '×' : '◌'}</span><div><strong>{statusLabels[currentStatus] ?? currentStatus}</strong><p>{statusDescriptions[currentStatus] ?? 'La solicitud tiene una actualización disponible.'}</p><small>Última actualización: {new Date(result.last_updated_at).toLocaleString('es-GT')}</small></div></div>
+        <button className="public-tracking-answers-button" onClick={() => void openAnswers()} type="button"><span><i aria-hidden="true">▤</i><strong>Ver respuestas enviadas</strong></span><em aria-hidden="true">→</em></button>
         <section className="public-tracking-timeline" aria-label="Historial de la solicitud">
           <h3>Historial</h3>
           {result.events.map((event, index) => <article key={`${event.status}-${event.changed_at}-${index}`}>
@@ -121,7 +152,46 @@ export function PublicTrackingPage() {
       {!trackingToken && !loading && !searched && <div className="public-tracking-help"><span aria-hidden="true">i</span><p>Por seguridad, este portal únicamente muestra el estado y las fechas del proceso.</p></div>}
       {trackingToken && !loading && <a className="public-tracking-other" href="/seguimiento">Consultar otro código</a>}
     </section>
+    {answersOpen && <div className="public-answers-backdrop" onMouseDown={() => setAnswersOpen(false)}><section aria-labelledby="public-answers-title" aria-modal="true" className="public-answers-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+      <header><div><span>INFORMACIÓN ENVIADA</span><h2 id="public-answers-title">Tus respuestas</h2><p>Esta es la información registrada al completar el formulario.</p></div><button aria-label="Cerrar respuestas" onClick={() => setAnswersOpen(false)} type="button">×</button></header>
+      <div className="public-answers-content">
+        {answersLoading && <div className="public-answers-loading"><span /><strong>Cargando respuestas…</strong></div>}
+        {!answersLoading && answersError && <div className="public-tracking-error" role="alert"><span>!</span><div><strong>No pudimos cargar las respuestas</strong><p>{answersError}</p></div></div>}
+        {!answersLoading && !answersError && answers.map((answer, index) => {
+          const previousSection = index > 0 ? answers[index - 1].section_title : null
+          return <div className="public-answer-group" key={`${answer.section_title}-${answer.question}-${index}`}>{answer.section_title !== previousSection && <h3>{answer.section_title}</h3>}<article><span>{answer.question}</span><p>{formatPublicAnswer(answer.value, answer.field_type)}</p></article></div>
+        })}
+        {!answersLoading && !answersError && !answers.length && <div className="public-answers-empty">Este envío no contiene respuestas visibles.</div>}
+        {!answersLoading && !answersError && answers.some((answer) => ['photo', 'photo_attachment', 'document_attachment', 'identity_document'].includes(answer.field_type)) && <div className="public-answers-file-note"><span aria-hidden="true">i</span><p>Por seguridad, los archivos privados no se abren desde el portal público.</p></div>}
+      </div>
+      <footer><button className="primary-button" onClick={() => setAnswersOpen(false)} type="button">Cerrar</button></footer>
+    </section></div>}
     <p className="public-tracking-footer">Formularios inteligentes · Seguimiento seguro</p>
   </main>
+}
+
+function formatPublicAnswer(value: unknown, fieldType: string) {
+  if (value == null || value === '') return 'Sin respuesta'
+  if (typeof value === 'string') {
+    if (fieldType === 'geolocation' && value.includes('|')) {
+      const [latitude, longitude] = value.split('|')
+      return `Latitud: ${latitude} · Longitud: ${longitude}`
+    }
+    return value
+  }
+  if (typeof value === 'boolean' || typeof value === 'number') return String(value)
+  if (Array.isArray(value)) return value.length ? value.join(', ') : 'Sin respuesta'
+  const objectValue = value as Record<string, unknown>
+  if (objectValue.file_submitted) return objectValue.original_name ? `Archivo recibido: ${objectValue.original_name}` : 'Archivo recibido correctamente'
+  if (fieldType === 'identity_document') {
+    const parts = [
+      ['Tipo de documento', objectValue.document_type],
+      ['Número', objectValue.document_number],
+      ['Nombres', objectValue.first_names],
+      ['Apellidos', objectValue.last_names],
+    ].filter((item) => item[1])
+    return parts.length ? parts.map(([label, item]) => `${label}: ${item}`).join('\n') : 'Sin respuesta'
+  }
+  return Object.entries(objectValue).filter(([, item]) => item != null && item !== '').map(([key, item]) => `${key.replaceAll('_', ' ')}: ${String(item)}`).join('\n') || 'Sin respuesta'
 }
 

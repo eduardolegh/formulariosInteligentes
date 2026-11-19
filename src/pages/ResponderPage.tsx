@@ -278,7 +278,7 @@ export function ResponderPage() {
         <strong>Guarda tu código</strong>
         <p>Podrás consultar el avance sin iniciar sesión.</p>
         <div className="response-tracking-code"><code>{trackingCode}</code><button onClick={() => void copyTrackingCode()} type="button">{trackingCodeCopied ? 'Copiado' : 'Copiar'}</button></div>
-        <a className="secondary-button response-tracking-link" href={`/seguimiento/${trackingToken}`}>Consultar seguimiento</a>
+        <a aria-label="Abrir el seguimiento de la solicitud" className="response-tracking-link" href={`/seguimiento/${trackingToken}`}><span>Ver seguimiento</span><i aria-hidden="true">→</i></a>
         <div className={`response-tracking-email-state ${trackingEmailState}`}><span aria-hidden="true">{trackingEmailState === 'sent' ? '✓' : trackingEmailState === 'failed' ? '!' : '…'}</span><div><strong>{trackingEmailState === 'sent' ? 'Código enviado por correo' : trackingEmailState === 'failed' ? 'No pudimos enviar el correo' : 'Enviando correo…'}</strong><small>{trackingEmailState === 'sent' ? `Enviamos el acceso a ${trackingEmail}.` : trackingEmailState === 'failed' ? 'Tu código sigue siendo válido. Guárdalo o copia el enlace.' : 'Espera un momento mientras confirmamos la entrega.'}</small></div></div>
       </div>}
       <div className="response-experience-rating">

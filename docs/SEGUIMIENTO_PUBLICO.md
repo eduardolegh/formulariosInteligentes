@@ -39,6 +39,14 @@ Después de aplicar `030`, ejecutar también:
 supabase/migrations/031_public_tracking_answers.sql
 ```
 
+Para mostrar observaciones y enviar un correo por cada cambio de estado, también debe ejecutarse:
+
+```text
+supabase/migrations/034_tracking_observations_and_status_emails.sql
+```
+
+La migración conserva una copia de la observación en el historial y crea una cola auditable de notificaciones. El cambio de estado sigue siendo válido aunque Resend falle; el correo queda marcado para reintento.
+
 ## Secretos
 
 ```bash

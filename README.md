@@ -119,7 +119,7 @@ La interfaz publicada en Internet no puede acceder normalmente al Ollama de `127
 
 ## Base de datos y migraciones
 
-Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `031`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
+Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `034`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
 
 Las últimas incorporan:
 
@@ -132,6 +132,9 @@ Las últimas incorporan:
 - `029`: autorización segura de adjuntos en respuestas públicas.
 - `030`: seguimiento público, código seguro y auditoría de correos.
 - `031`: consulta protegida de respuestas desde el portal de seguimiento.
+- `032`: permisos y verificación real de cambios de estado en las respuestas.
+- `033`: alineación del permiso de revisión con la pantalla de respuestas.
+- `034`: observaciones públicas del seguimiento y cola auditable de correos por cambio de estado.
 
 No se debe ejecutar una migración manualmente y después volver a aplicarla sin revisar previamente el historial del proyecto.
 
@@ -154,7 +157,7 @@ La validación de identidad exige frente o página principal, retrato visible, c
 
 ## Seguimiento público
 
-Los formularios pueden solicitar un correo de seguimiento y generar un código independiente del identificador interno. El correo se envía mediante Resend desde una Edge Function y el portal público expone únicamente estados y fechas.
+Los formularios pueden solicitar un correo de seguimiento y generar un código independiente del identificador interno. El correo se envía mediante Resend desde una Edge Function. El portal público muestra estados, fechas y las observaciones que BackOffice haya guardado; cada cambio manual o confirmado a partir de un análisis con inteligencia artificial genera una notificación por correo. Una cola en base de datos conserva los envíos pendientes o fallidos sin revertir el cambio de estado.
 
 ```bash
 npx supabase functions deploy send-tracking-email --no-verify-jwt

@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { invokeAi } from "../lib/ai";
 import { dispatchSubmissionIntegrations } from "../lib/integrations";
+import { sendTrackingStatusNotifications } from "../lib/tracking";
 import { SubmissionTracking } from "./SubmissionTracking";
 
 type Submission = {
@@ -35,60 +36,71 @@ export function FormResponsesPage() {
   const [expanded] = useState<string | null>(selectedSubmission);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [operationError, setOperationError] = useState("");
   const [observation, setObservation] = useState("");
   const [reviewAction, setReviewAction] = useState<{ id: string; status: string } | null>(null);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ url: string; title: string } | null>(null);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; downloadUrl: string; title: string } | null>(null);
   async function analyzeSubmission(submission: Submission) {
-    setAnalyzing(submission.id); setError("");
-    if (!requiresAttention) { setAnalyzing(null); setError("Este formulario no requiere atención y no utiliza análisis con inteligencia artificial."); return; }
+    setAnalyzing(submission.id); setOperationError("");
+    if (!requiresAttention) { setAnalyzing(null); setOperationError("Este formulario no requiere atención y no utiliza análisis con inteligencia artificial."); return; }
     if (submission.status !== "submitted") {
       setAnalyzing(null);
-      setError("Solo las respuestas en estado Ingresado pueden analizarse con inteligencia artificial.");
+      setOperationError("Solo las respuestas en estado Ingresado pueden analizarse con inteligencia artificial.");
       return;
     }
     if (!aiContextReady) {
       setAnalyzing(null);
-      setError("Este formulario no tiene habilitado un contexto de inteligencia artificial completo.");
+      setOperationError("Este formulario no tiene habilitado un contexto de inteligencia artificial completo.");
       return;
     }
     let data: { observation?: string; suggested_status?: string };
     try { data = await invokeAi("analyze-submission", { submission_id: submission.id }); }
-    catch (analysisError) { setAnalyzing(null); setError(analysisError instanceof Error ? analysisError.message : "No se pudo analizar la respuesta."); return; }
+    catch (analysisError) { setAnalyzing(null); setOperationError(analysisError instanceof Error ? analysisError.message : "No se pudo analizar la respuesta."); return; }
     setAnalyzing(null);
     setObservation(data.observation ?? "");
     setReviewAction({ id: submission.id, status: data.suggested_status ?? "rejected" });
   }
   async function updateStatus(id: string, nextStatus: string, nextObservation?: string) {
+    setOperationError("");
     const normalizedObservation = nextObservation?.trim();
     if (
       (nextStatus === "approved" || nextStatus === "rejected") &&
       !normalizedObservation
     ) {
-      setError("Escribe una observación antes de continuar.");
+      setOperationError("Escribe una observación antes de continuar.");
       return false;
     }
     const changes: { status: string; observation?: string } = { status: nextStatus };
     if (normalizedObservation !== undefined) changes.observation = normalizedObservation;
-    const { error: updateError } = await supabase
+    setUpdatingStatus(id);
+    const { data: updatedSubmission, error: updateError } = await supabase
       .from("form_submissions")
       .update(changes)
-      .eq("id", id);
-    if (updateError) {
-      setError(updateError.message);
+      .eq("id", id)
+      .select("id,status,observation")
+      .maybeSingle();
+    if (updateError || !updatedSubmission) {
+      setOperationError(updateError?.message ?? "No se pudo guardar el estado. Verifica que tu usuario tenga permiso para atender esta respuesta.");
+      setUpdatingStatus(null);
       return false;
     }
     else {
-      try { await dispatchSubmissionIntegrations(id); } catch { setError("El estado se guardó, pero no fue posible iniciar la integración externa. La entrega quedó pendiente."); }
+      const warnings: string[] = [];
+      try { await dispatchSubmissionIntegrations(id); } catch { warnings.push("No fue posible iniciar la integración externa; la entrega quedó pendiente."); }
+      try { await sendTrackingStatusNotifications(id); } catch { warnings.push("No fue posible enviar el correo de seguimiento; quedó pendiente para reintento."); }
+      if (warnings.length) setOperationError(`El estado se guardó. ${warnings.join(" ")}`);
       setObservation("");
       setSubmissions((current) =>
         current.map((item) =>
           item.id === id
-            ? { ...item, status: nextStatus, observation: normalizedObservation ?? item.observation }
+            ? { ...item, status: updatedSubmission.status, observation: updatedSubmission.observation ?? item.observation }
             : item,
         ),
       );
+      setUpdatingStatus(null);
       return true;
     }
   }
@@ -218,6 +230,7 @@ export function FormResponsesPage() {
           No se pudieron cargar todas las respuestas: {error}
         </div>
       )}
+      {operationError && <div className="error-banner">{operationError}</div>}
       {submissions.length === 0 ? (
         <div className="panel table-empty">
           Todavía no hay respuestas registradas.
@@ -265,12 +278,13 @@ export function FormResponsesPage() {
                     {submission.status === "submitted" && (
                       <button
                         className="secondary-button"
+                        disabled={updatingStatus === submission.id}
                         onClick={() =>
                           void updateStatus(submission.id, "in_review")
                         }
                         type="button"
                       >
-                        Iniciar revisión
+                        {updatingStatus === submission.id ? "Guardando…" : "Iniciar revisión"}
                       </button>
                     )}
                     {submission.status === "in_review" && (
@@ -287,8 +301,8 @@ export function FormResponsesPage() {
                         </button>
                       </>
                     )}
-                    {(submission.status === "approved" || submission.status === "rejected") && <button className="secondary-button" onClick={() => void updateStatus(submission.id, "in_review")} type="button">Reabrir revisión</button>}
-                    {(submission.status === "approved" || submission.status === "rejected") && <button className="primary-button" onClick={() => void updateStatus(submission.id, "completed")} type="button">Finalizar</button>}</> : <span className="auto-approved-label">✓ Aprobación automática</span>}
+                    {(submission.status === "approved" || submission.status === "rejected") && <button className="secondary-button" disabled={updatingStatus === submission.id} onClick={() => void updateStatus(submission.id, "in_review")} type="button">{updatingStatus === submission.id ? "Guardando…" : "Reabrir revisión"}</button>}
+                    {(submission.status === "approved" || submission.status === "rejected") && <button className="primary-button" disabled={updatingStatus === submission.id} onClick={() => void updateStatus(submission.id, "completed")} type="button">{updatingStatus === submission.id ? "Guardando…" : "Finalizar"}</button>}</> : <span className="auto-approved-label">✓ Aprobación automática</span>}
                   </span>
                 </div>
                 {expanded === submission.id && (

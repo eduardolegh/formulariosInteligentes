@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { invokeAi } from "../lib/ai";
 import { dispatchSubmissionIntegrations, invokeIntegrationFunction } from "../lib/integrations";
+import { sendTrackingStatusNotifications } from "../lib/tracking";
 import { SubmissionTracking } from "./SubmissionTracking";
 type Row = {
   id: string;
@@ -84,14 +85,18 @@ export function FormInboxPage() {
   }
 
   async function confirmDecision() {
+    setError("");
     if (!reviewAction || !observation.trim()) {
       setError("La observación es obligatoria para confirmar la decisión.");
       return;
     }
-    const { error: updateError } = await supabase.from("form_submissions").update({ status: reviewAction.status, observation: observation.trim() }).eq("id", reviewAction.id);
-    if (updateError) { setError(updateError.message); return; }
-    try { await dispatchSubmissionIntegrations(reviewAction.id); } catch { setError("La decisión se guardó, pero no fue posible iniciar la integración externa. La entrega quedó pendiente."); }
-    setRows((current) => current.map((row) => row.id === reviewAction.id ? { ...row, status: reviewAction.status, observation: observation.trim() } : row));
+    const { data: updatedSubmission, error: updateError } = await supabase.from("form_submissions").update({ status: reviewAction.status, observation: observation.trim() }).eq("id", reviewAction.id).select("id,status,observation").maybeSingle();
+    if (updateError || !updatedSubmission) { setError(updateError?.message ?? "No se pudo guardar la decisión. Verifica tus permisos para atender esta respuesta."); return; }
+    const warnings: string[] = [];
+    try { await dispatchSubmissionIntegrations(reviewAction.id); } catch { warnings.push("No fue posible iniciar la integración externa; la entrega quedó pendiente."); }
+    try { await sendTrackingStatusNotifications(reviewAction.id); } catch { warnings.push("No fue posible enviar el correo de seguimiento; quedó pendiente para reintento."); }
+    if (warnings.length) setError(`La decisión se guardó. ${warnings.join(" ")}`);
+    setRows((current) => current.map((row) => row.id === reviewAction.id ? { ...row, status: updatedSubmission.status, observation: updatedSubmission.observation } : row));
     await loadDeliveries(rows.map((row) => row.id));
     setReviewAction(null);
     setObservation("");

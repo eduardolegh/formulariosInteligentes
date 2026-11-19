@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-type TrackingEvent = { status: string; changed_at: string }
+type TrackingEvent = { status: string; changed_at: string; observation?: string | null }
 type TrackingResult = {
   form_name: string
   current_status: string
@@ -111,6 +111,7 @@ export function PublicTrackingPage() {
   }
 
   const currentStatus = result?.current_status ?? ''
+  const latestObservation = [...(result?.events ?? [])].reverse().find((event) => event.observation?.trim())?.observation?.trim()
 
   return <main className="public-tracking-page">
     <div className="public-tracking-brand"><img src="/logo.svg" alt="Formularios inteligentes" /></div>
@@ -139,12 +140,13 @@ export function PublicTrackingPage() {
           <span className={`public-tracking-status ${currentStatus}`}>{statusLabels[currentStatus] ?? currentStatus}</span>
         </div>
         <div className={`public-tracking-current ${currentStatus}`}><span aria-hidden="true">{['approved', 'completed'].includes(currentStatus) ? '✓' : currentStatus === 'rejected' ? '×' : '◌'}</span><div><strong>{statusLabels[currentStatus] ?? currentStatus}</strong><p>{statusDescriptions[currentStatus] ?? 'La solicitud tiene una actualización disponible.'}</p><small>Última actualización: {new Date(result.last_updated_at).toLocaleString('es-GT')}</small></div></div>
+        {latestObservation && <aside className="public-tracking-observation"><span aria-hidden="true">✦</span><div><strong>Observación del equipo</strong><p>{latestObservation}</p></div></aside>}
         <button className="public-tracking-answers-button" onClick={() => void openAnswers()} type="button"><span><i aria-hidden="true">▤</i><strong>Ver respuestas enviadas</strong></span><em aria-hidden="true">→</em></button>
         <section className="public-tracking-timeline" aria-label="Historial de la solicitud">
           <h3>Historial</h3>
           {result.events.map((event, index) => <article key={`${event.status}-${event.changed_at}-${index}`}>
             <div className={`public-tracking-marker ${event.status}`}>{index + 1}</div>
-            <div><strong>{statusLabels[event.status] ?? event.status}</strong><p>{new Date(event.changed_at).toLocaleString('es-GT')}</p></div>
+            <div><strong>{statusLabels[event.status] ?? event.status}</strong><p>{new Date(event.changed_at).toLocaleString('es-GT')}</p>{event.observation && <blockquote>{event.observation}</blockquote>}</div>
           </article>)}
         </section>
       </div>}

@@ -1,0 +1,64 @@
+{
+  "captured": "2026-11-16",
+  "sources": [
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/",
+      "file": "fuentes/web.html",
+      "sha256": "8b3aaa6f04459d69420716c9ffebe8c16dd0b7663f50b1661a2380c00cae8331"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/api/docs/",
+      "file": "fuentes/api.html",
+      "sha256": "c471fb53628f9978d83cd93fc74d408b14f4b936b497a4e9f8d1ecc64cf6f86f"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/fingersdk/installers/",
+      "file": "fuentes/fingers.html",
+      "sha256": "dd139b2f0a421c7ffdf9ed02919e175f872af2c37bf4d384407085e73b514a94"
+    }
+  ],
+  "images": [
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/img/apikey_1.png",
+      "file": "assets/apikey_1.png",
+      "bytes": 49079,
+      "sha256": "0dc38324ee477ef544ba45ed2e24a715bf102eeca1682dc2c9485d4834ef13d1"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/img/apikey_2.png",
+      "file": "assets/apikey_2.png",
+      "bytes": 1149187,
+      "sha256": "abebb0fe5f31f96c2aa56ed8eaa448812ebb7589ccdda82cf2b2852b407399ec"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/img/apikey_3.png",
+      "file": "assets/apikey_3.png",
+      "bytes": 551720,
+      "sha256": "34a19e9c920fb12b5c6ecfbb81d11a02e33961a3b2b5b2313be4689d39de6fe7"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/img/apikey_4.png",
+      "file": "assets/apikey_4.png",
+      "bytes": 49558,
+      "sha256": "0e118a6c948fa956c5d244da8470edbde29fc09aacf276c972007f93d9d3f4d6"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/img/clienteid_1.png",
+      "file": "assets/clienteid_1.png",
+      "bytes": 49079,
+      "sha256": "0dc38324ee477ef544ba45ed2e24a715bf102eeca1682dc2c9485d4834ef13d1"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/img/clienteid_2.png",
+      "file": "assets/clienteid_2.png",
+      "bytes": 471431,
+      "sha256": "08b17be9dca1e2d9c1c78a2e9cc333cf6bb39e795ba06402b738edcec8daafbf"
+    },
+    {
+      "url": "https://biometricid.racsa.go.cr/site/sdkweb/docs/img/clienteid_3.png",
+      "file": "assets/clienteid_3.png",
+      "bytes": 282281,
+      "sha256": "6094f18079caa66d2ce3713624f477d14650007365ccd9d4b3662ebd1e4f020f"
+    }
+  ]
+}

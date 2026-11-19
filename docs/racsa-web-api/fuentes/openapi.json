@@ -1,0 +1,857 @@
+{
+ "openapi": "3.0.0",
+ "info": {
+  "title": "BioApi",
+  "version": "v1"
+ },
+ "servers": [
+  {
+   "url": "/"
+  }
+ ],
+ "security": [
+  {
+   "JWT": []
+  }
+ ],
+ "paths": {
+  "/api/BiometricVerification": {
+   "post": {
+    "tags": [
+     "BiometricVerification"
+    ],
+    "summary": "Perform biometric verification over fingerprint or face.",
+    "description": "Sample request:\n            \n    POST /BiometricVerification\n    {\n       \"finger\": \"RightThumb\",\n       \"fingerPrint\": \"\"\n    }",
+    "operationId": "BiometricVerification_Post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BiometricVerificationRequest"
+       }
+      }
+     },
+     "required": true,
+     "x-name": "request",
+     "x-position": 1
+    },
+    "responses": {
+     "200": {
+      "description": "If the request did pass biometric verification successfully",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BiometricVerifiedResponse"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "If the request can not be processed due to invalid input data",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValidationProblemDetails"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "If the request did not pass biometric verification ",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BiometricVerificationResponseBase"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "If the service is not able to process the request due to internal failures",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProblemDetails"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "JWT": []
+     },
+     {
+      "default": []
+     }
+    ],
+    "x-throttling-tier": "Unlimited",
+    "x-auth-type": "Application & Application User",
+    "x-wso2-application-security": {
+     "security-types": [
+      "api_key"
+     ],
+     "optional": false
+    }
+   }
+  },
+  "/api/DocumentQuery": {
+   "post": {
+    "tags": [
+     "DocumentQuery"
+    ],
+    "summary": "Queries if a document is available to perform biometric verification.",
+    "description": "Sample request:\n            \n    POST /DocumentQuery\n    {\n       \"documentType\": \"Foreigner\",\n       \"documentNumber\": \"123456\",\n       \"userEmail\": \"user@gmail.com\",\n    }",
+    "operationId": "DocumentQuery_Post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DocumentQueryRequest"
+       }
+      }
+     },
+     "required": true,
+     "x-name": "request",
+     "x-position": 1
+    },
+    "responses": {
+     "200": {
+      "description": "If the document is available to perform biometric verification",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentAvailableResponse"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "If the request can not be processed due to invalid input data",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValidationProblemDetails"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "If the document is not available to perform biometric verification",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentQueryResponseBase"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "If the service is not able to process the request due to internal failures",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProblemDetails"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "JWT": []
+     },
+     {
+      "default": []
+     }
+    ],
+    "x-throttling-tier": "Unlimited",
+    "x-auth-type": "Application & Application User",
+    "x-wso2-application-security": {
+     "security-types": [
+      "api_key"
+     ],
+     "optional": false
+    }
+   }
+  },
+  "/api/DocumentTypesQuery": {
+   "get": {
+    "tags": [
+     "DocumentTypesQuery"
+    ],
+    "summary": "Queries the list of available document types",
+    "description": "Sample request:\n            \n    GET /DocumentTypesQuery",
+    "operationId": "DocumentTypesQuery_Get",
+    "responses": {
+     "200": {
+      "description": "List of available document types",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentTypesQueryAvailableResponse"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "If the request can not be processed due to invalid input data",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValidationProblemDetails"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValidationProblemDetails"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "If the service is not able to process the request due to internal failures",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProblemDetails"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "JWT": []
+     },
+     {
+      "default": []
+     }
+    ],
+    "x-throttling-tier": "Unlimited",
+    "x-auth-type": "Application & Application User",
+    "x-wso2-application-security": {
+     "security-types": [
+      "api_key"
+     ],
+     "optional": false
+    }
+   }
+  },
+  "/api/ExternalSourceQuery": {
+   "post": {
+    "tags": [
+     "ExternalSourceQuery"
+    ],
+    "summary": "Allows query an external source",
+    "description": "sample request:\n            \n    POST /ExternalSourceQuery\n    {\n       \"ExternalSourceType\": \"CCSS\"\n    }",
+    "operationId": "ExternalSourceQuery_Post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ExternalSourceRequest"
+       }
+      }
+     },
+     "required": true,
+     "x-name": "request",
+     "x-position": 1
+    },
+    "responses": {
+     "200": {
+      "description": "The query of external source was successful",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExternalSourceResponseOk"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "If the request cannot be processed with the information provided",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValidationProblemDetails"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "The person was not found in the external source query",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExternalSourceResponseNotFound"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "The query could not be processed due to internal or external failures",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProblemDetails"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "JWT": []
+     },
+     {
+      "default": []
+     }
+    ],
+    "x-throttling-tier": "Unlimited",
+    "x-auth-type": "Application & Application User",
+    "x-wso2-application-security": {
+     "security-types": [
+      "api_key"
+     ],
+     "optional": false
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "BiometricVerifiedResponse": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BiometricVerificationResponseBase"
+     },
+     {
+      "required": [
+       "hit"
+      ],
+      "type": "object",
+      "properties": {
+       "hit": {
+        "type": "boolean",
+        "default": true
+       },
+       "documentImage": {
+        "type": "string",
+        "nullable": true
+       },
+       "documentExpirationDate": {
+        "type": "string",
+        "nullable": true
+       },
+       "token": {
+        "type": "string",
+        "nullable": true
+       },
+       "externalDataSources": {
+        "type": "array",
+        "nullable": true,
+        "items": {
+         "$ref": "#/components/schemas/ExternalSourceEnumeration"
+        }
+       },
+       "documentNumber": {
+        "type": "string",
+        "nullable": true
+       },
+       "oldDocumentNumber": {
+        "type": "string",
+        "nullable": true
+       },
+       "lastName": {
+        "type": "string",
+        "nullable": true
+       },
+       "secondLastName": {
+        "type": "string",
+        "nullable": true
+       },
+       "name": {
+        "type": "string",
+        "nullable": true
+       },
+       "category": {
+        "type": "string",
+        "nullable": true
+       },
+       "birthDay": {
+        "type": "string",
+        "format": "date-time",
+        "nullable": true
+       },
+       "dateIssue": {
+        "type": "string",
+        "format": "date-time",
+        "nullable": true
+       },
+       "nationality": {
+        "type": "string",
+        "nullable": true
+       },
+       "gender": {
+        "type": "string",
+        "nullable": true
+       },
+       "status": {
+        "type": "string",
+        "nullable": true
+       }
+      },
+      "additionalProperties": false
+     }
+    ]
+   },
+   "ExternalSourceEnumeration": {
+    "type": "string",
+    "description": "",
+    "enum": [
+     "CCSS",
+     "CST"
+    ],
+    "x-enumNames": [
+     "CCSS",
+     "CST"
+    ]
+   },
+   "BiometricVerificationResponseBase": {
+    "required": [
+     "hit",
+     "transactionId"
+    ],
+    "type": "object",
+    "properties": {
+     "transactionId": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "remainingTries": {
+      "type": "integer",
+      "format": "int32"
+     },
+     "hit": {
+      "type": "boolean",
+      "default": false
+     },
+     "scoreResult": {
+      "type": "number",
+      "format": "double"
+     },
+     "scoreLimit": {
+      "type": "number",
+      "format": "double"
+     }
+    },
+    "additionalProperties": false
+   },
+   "ProblemDetails": {
+    "type": "object",
+    "properties": {
+     "type": {
+      "type": "string",
+      "nullable": true
+     },
+     "title": {
+      "type": "string",
+      "nullable": true
+     },
+     "status": {
+      "type": "integer",
+      "format": "int32",
+      "nullable": true
+     },
+     "detail": {
+      "type": "string",
+      "nullable": true
+     },
+     "instance": {
+      "type": "string",
+      "nullable": true
+     }
+    },
+    "additionalProperties": {
+     "nullable": true
+    }
+   },
+   "ValidationProblemDetails": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+     },
+     {
+      "type": "object",
+      "properties": {
+       "errors": {
+        "type": "object",
+        "additionalProperties": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "additionalProperties": {
+       "nullable": true
+      }
+     }
+    ]
+   },
+   "HttpValidationProblemDetails": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/ProblemDetails"
+     },
+     {
+      "type": "object",
+      "properties": {
+       "errors": {
+        "type": "object",
+        "additionalProperties": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "additionalProperties": {
+       "nullable": true
+      }
+     }
+    ]
+   },
+   "BiometricVerificationRequest": {
+    "type": "object",
+    "properties": {
+     "finger": {
+      "nullable": true,
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/Finger"
+       }
+      ]
+     },
+     "fingerPrint": {
+      "type": "string",
+      "nullable": true
+     },
+     "fullFacePhoto": {
+      "type": "string",
+      "nullable": true
+     }
+    },
+    "additionalProperties": false
+   },
+   "Finger": {
+    "type": "string",
+    "description": "",
+    "enum": [
+     "RightThumb",
+     "RightIndex",
+     "RightMiddle",
+     "RightRing",
+     "RightLittle",
+     "LeftThumb",
+     "LeftIndex",
+     "LeftMiddle",
+     "LeftRing",
+     "LeftLittle"
+    ],
+    "x-enumNames": [
+     "RightThumb",
+     "RightIndex",
+     "RightMiddle",
+     "RightRing",
+     "RightLittle",
+     "LeftThumb",
+     "LeftIndex",
+     "LeftMiddle",
+     "LeftRing",
+     "LeftLittle"
+    ]
+   },
+   "DocumentAvailableResponse": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/DocumentQueryResponseBase"
+     },
+     {
+      "required": [
+       "availableFingers",
+       "biometricAvailable",
+       "facialRecognitionAvailable",
+       "token"
+      ],
+      "type": "object",
+      "properties": {
+       "biometricAvailable": {
+        "type": "boolean",
+        "default": true
+       },
+       "token": {
+        "minLength": 1,
+        "type": "string"
+       },
+       "availableFingers": {
+        "type": "array",
+        "items": {
+         "$ref": "#/components/schemas/Finger"
+        }
+       },
+       "facialRecognitionAvailable": {
+        "type": "boolean"
+       },
+       "name": {
+        "type": "string",
+        "nullable": true
+       },
+       "surname": {
+        "type": "string",
+        "nullable": true
+       },
+       "secondSurname": {
+        "type": "string",
+        "nullable": true
+       }
+      },
+      "additionalProperties": false
+     }
+    ]
+   },
+   "DocumentQueryResponseBase": {
+    "required": [
+     "biometricAvailable",
+     "transactionId"
+    ],
+    "type": "object",
+    "properties": {
+     "transactionId": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "biometricAvailable": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false
+   },
+   "DocumentQueryRequest": {
+    "required": [
+     "documentNumber",
+     "documentType"
+    ],
+    "type": "object",
+    "properties": {
+     "documentType": {
+      "$ref": "#/components/schemas/DocumentTypeEnumeration"
+     },
+     "documentNumber": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "userEmail": {
+      "type": "string",
+      "nullable": true
+     }
+    },
+    "additionalProperties": false
+   },
+   "DocumentTypeEnumeration": {
+    "type": "string",
+    "description": "",
+    "enum": [
+     "National",
+     "Foreigner"
+    ],
+    "x-enumNames": [
+     "National",
+     "Foreigner"
+    ]
+   },
+   "DocumentTypesQueryAvailableResponse": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/DocumentTypesQueryBaseResponse"
+     },
+     {
+      "required": [
+       "documentTypesAvailable"
+      ],
+      "type": "object",
+      "properties": {
+       "documentTypesAvailable": {
+        "type": "array",
+        "items": {
+         "$ref": "#/components/schemas/DocumentTypeEnumeration"
+        }
+       }
+      },
+      "additionalProperties": false
+     }
+    ]
+   },
+   "DocumentTypesQueryBaseResponse": {
+    "type": "object",
+    "additionalProperties": false
+   },
+   "ExternalSourceResponseOk": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/ExternalSourceBaseResponse"
+     },
+     {
+      "required": [
+       "listFields"
+      ],
+      "type": "object",
+      "properties": {
+       "listFields": {
+        "type": "array",
+        "items": {
+         "$ref": "#/components/schemas/ExternalSourceField"
+        }
+       }
+      },
+      "additionalProperties": false
+     }
+    ]
+   },
+   "ExternalSourceField": {
+    "required": [
+     "fieldType",
+     "name"
+    ],
+    "type": "object",
+    "properties": {
+     "fieldType": {
+      "$ref": "#/components/schemas/FieldEnumeration"
+     },
+     "name": {
+      "minLength": 1,
+      "type": "string"
+     },
+     "value": {
+      "nullable": true
+     }
+    },
+    "additionalProperties": false
+   },
+   "FieldEnumeration": {
+    "type": "string",
+    "description": "",
+    "enum": [
+     "Text",
+     "Int",
+     "Double",
+     "Bool",
+     "Date",
+     "Link",
+     "Image"
+    ],
+    "x-enumNames": [
+     "Text",
+     "Int",
+     "Double",
+     "Bool",
+     "Date",
+     "Link",
+     "Image"
+    ]
+   },
+   "ExternalSourceBaseResponse": {
+    "required": [
+     "transactionId"
+    ],
+    "type": "object",
+    "properties": {
+     "transactionId": {
+      "minLength": 1,
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "x-abstract": true
+   },
+   "ExternalSourceResponseNotFound": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/ExternalSourceBaseResponse"
+     },
+     {
+      "type": "object",
+      "additionalProperties": false
+     }
+    ]
+   },
+   "ExternalSourceRequest": {
+    "required": [
+     "externalSource"
+    ],
+    "type": "object",
+    "properties": {
+     "externalSource": {
+      "$ref": "#/components/schemas/ExternalSourceEnumeration"
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "securitySchemes": {
+   "JWT": {
+    "type": "apiKey",
+    "description": "Type into the textbox: Bearer {your JWT token}.",
+    "name": "Authorization",
+    "in": "header"
+   },
+   "default": {
+    "type": "oauth2",
+    "flows": {
+     "implicit": {
+      "authorizationUrl": "https://test.com",
+      "scopes": {}
+     }
+    }
+   }
+  }
+ },
+ "x-generator": "NSwag v13.20.0.0 (NJsonSchema v10.9.0.0 (Newtonsoft.Json v10.0.0.0))",
+ "x-wso2-auth-header": "ApiKey",
+ "x-wso2-cors": {
+  "corsConfigurationEnabled": false,
+  "accessControlAllowOrigins": [],
+  "accessControlAllowCredentials": false,
+  "accessControlAllowHeaders": [],
+  "accessControlAllowMethods": []
+ },
+ "x-wso2-production-endpoints": {
+  "urls": [
+   "https://internalapibiometricid.racsa.go.cr"
+  ],
+  "type": "http"
+ },
+ "x-wso2-sandbox-endpoints": {
+  "urls": [
+   "https://internalapibiometricid.racsa.go.cr"
+  ],
+  "type": "http"
+ },
+ "x-wso2-basePath": "/bioapi/v1",
+ "x-wso2-transports": [
+  "https"
+ ],
+ "x-wso2-response-cache": {
+  "enabled": false,
+  "cacheTimeoutInSeconds": 300
+ }
+}

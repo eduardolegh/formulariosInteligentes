@@ -10,6 +10,9 @@ type Row = {
   status: string;
   submitted_at: string;
   observation: string;
+  assigned_to: string | null;
+  assigned_at: string | null;
+  assigned_name?: string | null;
   forms?: { name?: string; requires_attention?: boolean; ai_enabled?: boolean } | null;
 };
 type ContextRow = { form_id: string; objective: string; instructions: string; rules: string; restrictions: string; expected_output: string };
@@ -31,6 +34,8 @@ export function FormInboxPage() {
   const [retryingDelivery, setRetryingDelivery] = useState<string | null>(null);
   const [trackingSubmission, setTrackingSubmission] = useState<Row | null>(null);
   const [formsWithCompleteContext, setFormsWithCompleteContext] = useState<Set<string>>(new Set());
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [updatingAssignment, setUpdatingAssignment] = useState<string | null>(null);
 
   function hasCompleteContext(context: ContextRow) {
     return [context.objective, context.instructions, context.rules, context.restrictions, context.expected_output]
@@ -38,10 +43,45 @@ export function FormInboxPage() {
   }
 
   function canAnalyzeWithAi(row: Row) {
-    return row.status === "submitted"
+    return row.status === "in_review"
+      && row.assigned_to === currentUserId
       && row.forms?.requires_attention !== false
       && row.forms?.ai_enabled === true
       && formsWithCompleteContext.has(row.form_id);
+  }
+
+  async function notifyStatusChange(submissionId: string) {
+    const warnings: string[] = [];
+    try { await dispatchSubmissionIntegrations(submissionId); } catch { warnings.push("la integración externa quedó pendiente"); }
+    try { await sendTrackingStatusNotifications(submissionId); } catch { warnings.push("el correo de seguimiento quedó pendiente"); }
+    if (warnings.length) setError(`El estado se guardó, pero ${warnings.join(" y ")}.`);
+  }
+
+  async function claimSubmission(row: Row) {
+    setError(""); setUpdatingAssignment(row.id);
+    const { data, error: claimError } = await supabase.rpc("claim_form_submission", { target_submission_id: row.id });
+    if (claimError || !data) {
+      setError(claimError?.message ?? "No se pudo asignar la solicitud. Es posible que otro usuario ya la haya tomado.");
+      setUpdatingAssignment(null);
+      return;
+    }
+    const assigned = data as Row;
+    setRows((current) => current.map((item) => item.id === row.id ? { ...item, status: "assigned", assigned_to: assigned.assigned_to, assigned_at: assigned.assigned_at, assigned_name: "Tú" } : item));
+    await notifyStatusChange(row.id);
+    setUpdatingAssignment(null);
+  }
+
+  async function startReview(row: Row) {
+    setError(""); setUpdatingAssignment(row.id);
+    const { data, error: updateError } = await supabase.from("form_submissions").update({ status: "in_review" }).eq("id", row.id).eq("assigned_to", currentUserId).select("id,status").maybeSingle();
+    if (updateError || !data) {
+      setError(updateError?.message ?? "No se pudo iniciar la revisión. Verifica que la solicitud continúe asignada a tu usuario.");
+      setUpdatingAssignment(null);
+      return;
+    }
+    setRows((current) => current.map((item) => item.id === row.id ? { ...item, status: "in_review" } : item));
+    await notifyStatusChange(row.id);
+    setUpdatingAssignment(null);
   }
 
   async function loadDeliveries(submissionIds: string[]) {
@@ -62,15 +102,16 @@ export function FormInboxPage() {
       setError("Este formulario no requiere atención y sus envíos se aprueban automáticamente sin análisis de IA.");
       return;
     }
-    if (row.status !== "submitted") {
+    if (row.status !== "in_review") {
       if (row.status === "completed") { setError("Este formulario ya fue finalizado y no puede analizarse nuevamente con IA."); return; }
       if (row.status === "approved" || row.status === "rejected") {
         setStatusNotice({ status: row.status, message: `Este formulario ya fue ${row.status === "approved" ? "aprobado" : "rechazado"} y no puede analizarse nuevamente con IA.` });
         return;
       }
-      setError("Solo los formularios en estado Ingresado pueden analizarse con inteligencia artificial.");
+      setError("La solicitud debe estar asignada a tu usuario y en estado En revisión para analizarse con inteligencia artificial.");
       return;
     }
+    if (row.assigned_to !== currentUserId) { setError("Esta solicitud está siendo atendida por otro usuario."); return; }
     if (row.forms?.ai_enabled !== true || !formsWithCompleteContext.has(row.form_id)) {
       setError("Este formulario no tiene habilitado un contexto de inteligencia artificial completo.");
       return;
@@ -103,12 +144,15 @@ export function FormInboxPage() {
   }
   useEffect(() => {
     async function load() {
-      const { data, error: e } = await supabase
-        .from("form_submissions")
-        .select("id,form_id,status,submitted_at,observation,forms(name,requires_attention,ai_enabled)")
-        .order("submitted_at", { ascending: false });
-      if (e) setError(e.message);
-      const r = (data as Row[]) ?? [];
+      const [{ data, error: e }, assignmentResult, userResult] = await Promise.all([
+        supabase.from("form_submissions").select("id,form_id,status,submitted_at,observation,assigned_to,assigned_at,forms(name,requires_attention,ai_enabled)").order("submitted_at", { ascending: false }),
+        supabase.rpc("get_submission_assignments"),
+        supabase.auth.getUser(),
+      ]);
+      if (e || assignmentResult.error) setError(e?.message ?? assignmentResult.error?.message ?? "No se pudieron cargar las asignaciones.");
+      const assignments = new Map(((assignmentResult.data as { submission_id: string; assigned_name: string }[] | null) ?? []).map((item) => [item.submission_id, item.assigned_name]));
+      const r = ((data as Row[]) ?? []).map((row) => ({ ...row, assigned_name: assignments.get(row.id) ?? null }));
+      setCurrentUserId(userResult.data.user?.id ?? "");
       setRows(r);
       const formIds = [...new Set(r.map((row) => row.form_id))];
       const { data: contextData, error: contextError } = formIds.length
@@ -169,6 +213,7 @@ export function FormInboxPage() {
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">Todos</option>
             <option value="submitted">Ingresado</option>
+            <option value="assigned">Asignado</option>
             <option value="in_review">En revisión</option>
             <option value="approved">Aprobado</option>
             <option value="rejected">Rechazado</option>
@@ -214,15 +259,18 @@ export function FormInboxPage() {
                 <span>{new Date(r.submitted_at).toLocaleString("es-GT")}</span>
                 <span>
                   <em className="submission-status">
-                    {r.status === "submitted" ? "Ingresado" : r.status}
+                    {statusLabel(r.status)}
                   </em>
                 </span>
                 <span className="inbox-actions">
                   <a className="table-link inbox-view-link" href={`/formularios/${r.form_id}/respuestas?submission=${r.id}`}>Ver respuestas</a>
                   <button className="secondary-button" onClick={() => setTrackingSubmission(r)} type="button">Flujo de estados</button>
-                  {canAnalyzeWithAi(r) && <button className="secondary-button" disabled={analyzing === r.id} onClick={() => void analyzeSubmission(r)} type="button">{analyzing === r.id ? "Analizando…" : "✦ Analizar con IA"}</button>}
+                  {r.status === "submitted" && <button className="status-action status-action--assign" disabled={updatingAssignment === r.id} onClick={() => void claimSubmission(r)} type="button"><span aria-hidden="true">＋</span>{updatingAssignment === r.id ? "Asignando…" : "Asignarme"}</button>}
+                  {r.status === "assigned" && r.assigned_to === currentUserId && <button className="status-action status-action--review" disabled={updatingAssignment === r.id} onClick={() => void startReview(r)} type="button"><span aria-hidden="true">▶</span>{updatingAssignment === r.id ? "Guardando…" : "Iniciar revisión"}</button>}
+                  {canAnalyzeWithAi(r) && <button className="status-action status-action--ai" disabled={analyzing === r.id} onClick={() => void analyzeSubmission(r)} type="button"><span aria-hidden="true">✦</span>{analyzing === r.id ? "Analizando…" : "Analizar con IA"}</button>}
                 </span>
               </div>
+              {r.assigned_to && <div className="inbox-assignment"><span aria-hidden="true">●</span><div><strong>Responsable</strong><span>{r.assigned_to === currentUserId ? "Asignada a ti" : r.assigned_name ?? "Usuario BackOffice"}{r.assigned_at ? ` · desde ${new Date(r.assigned_at).toLocaleString("es-GT")}` : ""}</span></div></div>}
               {r.observation && <div className="inbox-observation"><strong>Observación</strong><span>{r.observation}</span></div>}
               {deliveries.some((delivery) => delivery.submission_id === r.id) && <div className="inbox-integrations"><strong>Integraciones</strong><div>{deliveries.filter((delivery) => delivery.submission_id === r.id).map((delivery) => <span className={`delivery-pill ${delivery.status}`} title={delivery.error_message ?? undefined} key={delivery.id}>{delivery.integration?.name ?? "Servicio externo"}: {delivery.status === "succeeded" ? "Ejecutada" : delivery.status === "failed" ? "Fallida" : delivery.status === "processing" ? "Procesando" : "Pendiente"}{delivery.http_status ? ` · HTTP ${delivery.http_status}` : ""}{["pending", "failed"].includes(delivery.status) && <button disabled={retryingDelivery === delivery.id} onClick={() => void retryDelivery(delivery.id)} type="button">{retryingDelivery === delivery.id ? "…" : "Reintentar"}</button>}</span>)}</div></div>}
             </div>
@@ -237,7 +285,11 @@ export function FormInboxPage() {
       {analyzing && <div className="modal-backdrop ai-processing"><div className="ai-processing-card"><div className="ai-processing-orb">✦</div><div><span className="ai-badge">IA EN PROCESO</span><h2>Analizando la respuesta</h2><p>Comparando las respuestas con el contexto y las reglas del formulario<span className="processing-dots">...</span></p></div></div></div>}
       {statusNotice && <div className="modal-backdrop"><div className={`status-notice-modal ${statusNotice.status}`} role="alertdialog" aria-modal="true" aria-labelledby="status-notice-title"><div className="status-notice-icon" aria-hidden="true">{statusNotice.status === "approved" ? "✓" : "×"}</div><span className="status-notice-label">ANÁLISIS NO DISPONIBLE</span><h2 id="status-notice-title">Formulario {statusNotice.status === "approved" ? "aprobado" : "rechazado"}</h2><p>{statusNotice.message}</p><div className="status-notice-info"><span aria-hidden="true">✦</span> No se consumieron tokens de IA.</div><button className="primary-button" onClick={() => setStatusNotice(null)} type="button">Entendido</button></div></div>}
       {trackingSubmission && <div className="modal-backdrop tracking-modal-backdrop"><div aria-modal="true" className="tracking-modal" role="dialog"><header><div><span className="eyebrow">SEGUIMIENTO DE RESPUESTA</span><h2>{trackingSubmission.forms?.name ?? 'Formulario'}</h2><p>ID {trackingSubmission.id.slice(0, 8).toUpperCase()}</p></div><button aria-label="Cerrar seguimiento" onClick={() => setTrackingSubmission(null)} type="button">×</button></header><div className="tracking-modal-content"><SubmissionTracking submissionId={trackingSubmission.id} /></div><footer><button className="primary-button" onClick={() => setTrackingSubmission(null)} type="button">Cerrar</button></footer></div></div>}
-      {reviewAction && <div className="modal-backdrop"><div className="review-modal ai-review-modal"><div className="ai-modal-header"><span className="ai-modal-icon">✦</span><div><span className="ai-badge">RECOMENDACIÓN DE IA</span><h2>{reviewAction.status === "approved" ? "Aprobar envío" : "Rechazar envío"}</h2></div></div><p>Revisa la observación propuesta. Al confirmar, quedará guardada junto con el formulario.</p><textarea autoFocus value={observation} onChange={(event) => setObservation(event.target.value)} placeholder="Observación" rows={4} /><div className="form-actions"><button className="text-button" onClick={() => { setReviewAction(null); setObservation("") }} type="button">Cancelar</button><button className="primary-button" onClick={() => void confirmDecision()} type="button">Confirmar decisión</button></div></div></div>}
+      {reviewAction && <div className="modal-backdrop"><div className="review-modal ai-review-modal"><div className="ai-modal-header"><span className="ai-modal-icon">✦</span><div><span className="ai-badge">RECOMENDACIÓN DE IA</span><h2>{reviewAction.status === "approved" ? "Aprobar envío" : "Rechazar envío"}</h2></div></div><p>Revisa la observación propuesta. Al confirmar, quedará guardada junto con el formulario.</p><textarea autoFocus value={observation} onChange={(event) => setObservation(event.target.value)} placeholder="Observación" rows={4} /><div className="form-actions"><button className="text-button" onClick={() => { setReviewAction(null); setObservation("") }} type="button">Cancelar</button><button className={`status-action ${reviewAction.status === "approved" ? "status-action--approve" : "status-action--reject"}`} onClick={() => void confirmDecision()} type="button"><span aria-hidden="true">{reviewAction.status === "approved" ? "✓" : "×"}</span>Confirmar {reviewAction.status === "approved" ? "aprobación" : "rechazo"}</button></div></div></div>}
     </section>
   );
+}
+
+function statusLabel(status: string) {
+  return ({ submitted: "Ingresado", assigned: "Asignado", in_review: "En revisión", approved: "Aprobado", rejected: "Rechazado", completed: "Completado" } as Record<string, string>)[status] ?? status;
 }

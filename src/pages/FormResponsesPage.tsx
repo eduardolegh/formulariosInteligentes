@@ -5,6 +5,7 @@ import { invokeAi } from "../lib/ai";
 import { dispatchSubmissionIntegrations } from "../lib/integrations";
 import { sendTrackingStatusNotifications } from "../lib/tracking";
 import { SubmissionTracking } from "./SubmissionTracking";
+import { useAuth } from "../auth/AuthContext";
 
 type Submission = {
   id: string;
@@ -12,6 +13,9 @@ type Submission = {
   status: string;
   submitted_at: string;
   observation: string;
+  assigned_to: string | null;
+  assigned_at: string | null;
+  assigned_name?: string | null;
 };
 type Answer = { submission_id: string; field_id: string; value: unknown };
 type Field = {
@@ -23,6 +27,7 @@ type Field = {
 type Attachment = { id: string; submission_id: string; field_id: string; storage_path: string; original_name: string; mime_type: string; size_bytes: number; attachment_kind: string; validation_status: string; created_at: string; signed_url?: string; download_url?: string };
 
 export function FormResponsesPage() {
+  const { hasPermission } = useAuth();
   const { formId } = useParams();
   const [searchParams] = useSearchParams();
   const selectedSubmission = searchParams.get("submission");
@@ -41,14 +46,16 @@ export function FormResponsesPage() {
   const [reviewAction, setReviewAction] = useState<{ id: string; status: string } | null>(null);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState("");
   const [imagePreview, setImagePreview] = useState<{ url: string; title: string } | null>(null);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; downloadUrl: string; title: string } | null>(null);
+  const canManageAssignment = hasPermission("forms.inbox") || hasPermission("users.manage");
   async function analyzeSubmission(submission: Submission) {
     setAnalyzing(submission.id); setOperationError("");
     if (!requiresAttention) { setAnalyzing(null); setOperationError("Este formulario no requiere atención y no utiliza análisis con inteligencia artificial."); return; }
-    if (submission.status !== "submitted") {
+    if (submission.status !== "in_review" || submission.assigned_to !== currentUserId) {
       setAnalyzing(null);
-      setOperationError("Solo las respuestas en estado Ingresado pueden analizarse con inteligencia artificial.");
+      setOperationError("La respuesta debe estar asignada a tu usuario y en estado En revisión para analizarse con inteligencia artificial.");
       return;
     }
     if (!aiContextReady) {
@@ -62,6 +69,19 @@ export function FormResponsesPage() {
     setAnalyzing(null);
     setObservation(data.observation ?? "");
     setReviewAction({ id: submission.id, status: data.suggested_status ?? "rejected" });
+  }
+  async function claimSubmission(submission: Submission) {
+    setOperationError(""); setUpdatingStatus(submission.id);
+    const { data, error: claimError } = await supabase.rpc("claim_form_submission", { target_submission_id: submission.id });
+    if (claimError || !data) {
+      setOperationError(claimError?.message ?? "No se pudo asignar la respuesta. Es posible que otro usuario ya la haya tomado.");
+      setUpdatingStatus(null);
+      return;
+    }
+    const assigned = data as Submission;
+    setSubmissions((current) => current.map((item) => item.id === submission.id ? { ...item, status: "assigned", assigned_to: assigned.assigned_to, assigned_at: assigned.assigned_at, assigned_name: "Tú" } : item));
+    try { await sendTrackingStatusNotifications(submission.id); } catch { setOperationError("La respuesta fue asignada, pero el correo de seguimiento quedó pendiente para reintento."); }
+    setUpdatingStatus(null);
   }
   async function updateStatus(id: string, nextStatus: string, nextObservation?: string) {
     setOperationError("");
@@ -135,10 +155,14 @@ export function FormResponsesPage() {
         : { data: [], error: null };
       const { data: submissionData, error: submissionError } = await supabase
         .from("form_submissions")
-        .select("id,submitted_by,status,submitted_at,observation")
+        .select("id,submitted_by,status,submitted_at,observation,assigned_to,assigned_at")
         .eq("form_id", formId)
         .order("submitted_at", { ascending: false });
       const ids = (submissionData ?? []).map((s) => s.id);
+      const [{ data: assignmentData, error: assignmentError }, { data: userData }] = await Promise.all([
+        supabase.rpc("get_submission_assignments"),
+        supabase.auth.getUser(),
+      ]);
       const { data: answerData, error: answerError } = ids.length
         ? await supabase
             .from("submission_answers")
@@ -160,7 +184,9 @@ export function FormResponsesPage() {
       setRequiresAttention(form?.requires_attention !== false);
       setAiContextReady(Boolean(form?.ai_enabled) && Boolean(contextData) && [contextData?.objective, contextData?.instructions, contextData?.rules, contextData?.restrictions, contextData?.expected_output].every((value) => String(value ?? "").trim().length > 0));
       setFields((fieldData as Field[] | null) ?? []);
-      const allSubmissions = (submissionData as Submission[] | null) ?? [];
+      const assignmentNames = new Map(((assignmentData as { submission_id: string; assigned_name: string }[] | null) ?? []).map((item) => [item.submission_id, item.assigned_name]));
+      const allSubmissions = ((submissionData as Submission[] | null) ?? []).map((submission) => ({ ...submission, assigned_name: assignmentNames.get(submission.id) ?? null }));
+      setCurrentUserId(userData.user?.id ?? "");
       setSubmissions(
         selectedSubmission
           ? allSubmissions.filter(
@@ -177,6 +203,7 @@ export function FormResponsesPage() {
           submissionError?.message ??
           answerError?.message ??
           attachmentError?.message ??
+          assignmentError?.message ??
           "",
       );
       setLoading(false);
@@ -266,47 +293,50 @@ export function FormResponsesPage() {
                     <em className="submission-status">
                       {submission.status === "submitted"
                         ? "INGRESADO"
+                        : submission.status === "assigned"
+                          ? "ASIGNADO"
                         : submission.status === "in_review"
                           ? "EN REVISIÓN"
                           : submission.status.toUpperCase()}
                     </em>
                   </span>
                   <span>
-                    {requiresAttention ? <>{submission.status === "submitted" && aiContextReady && <button className="secondary-button" disabled={analyzing === submission.id} onClick={() => void analyzeSubmission(submission)} type="button">
-                      {analyzing === submission.id ? "Analizando…" : "Analizar con IA"}
+                    {requiresAttention ? <>{canManageAssignment && submission.status === "in_review" && submission.assigned_to === currentUserId && aiContextReady && <button className="status-action status-action--ai" disabled={analyzing === submission.id} onClick={() => void analyzeSubmission(submission)} type="button">
+                      <span aria-hidden="true">✦</span>{analyzing === submission.id ? "Analizando…" : "Analizar con IA"}
                     </button>}
-                    {submission.status === "submitted" && (
+                    {canManageAssignment && submission.status === "submitted" && (
                       <button
-                        className="secondary-button"
+                        className="status-action status-action--assign"
                         disabled={updatingStatus === submission.id}
-                        onClick={() =>
-                          void updateStatus(submission.id, "in_review")
-                        }
+                        onClick={() => void claimSubmission(submission)}
                         type="button"
                       >
-                        {updatingStatus === submission.id ? "Guardando…" : "Iniciar revisión"}
+                        <span aria-hidden="true">＋</span>{updatingStatus === submission.id ? "Asignando…" : "Asignarme"}
                       </button>
                     )}
-                    {submission.status === "in_review" && (
+                    {canManageAssignment && submission.status === "assigned" && submission.assigned_to === currentUserId && <button className="status-action status-action--review" disabled={updatingStatus === submission.id} onClick={() => void updateStatus(submission.id, "in_review")} type="button"><span aria-hidden="true">▶</span>{updatingStatus === submission.id ? "Guardando…" : "Iniciar revisión"}</button>}
+                    {canManageAssignment && submission.status === "in_review" && submission.assigned_to === currentUserId && (
                       <>
                         <button
-                          className="secondary-button"
+                          className="status-action status-action--approve"
                           onClick={() => { setObservation(submission.observation ?? ""); setReviewAction({ id: submission.id, status: "approved" }) }}
                           type="button"
                         >
-                          Aprobar
+                          <span aria-hidden="true">✓</span>Aprobar
                         </button>
-                        <button className="secondary-button" onClick={() => { setObservation(submission.observation ?? ""); setReviewAction({ id: submission.id, status: "rejected" }) }} type="button">
-                          Rechazar
+                        <button className="status-action status-action--reject" onClick={() => { setObservation(submission.observation ?? ""); setReviewAction({ id: submission.id, status: "rejected" }) }} type="button">
+                          <span aria-hidden="true">×</span>Rechazar
                         </button>
                       </>
                     )}
-                    {(submission.status === "approved" || submission.status === "rejected") && <button className="secondary-button" disabled={updatingStatus === submission.id} onClick={() => void updateStatus(submission.id, "in_review")} type="button">{updatingStatus === submission.id ? "Guardando…" : "Reabrir revisión"}</button>}
-                    {(submission.status === "approved" || submission.status === "rejected") && <button className="primary-button" disabled={updatingStatus === submission.id} onClick={() => void updateStatus(submission.id, "completed")} type="button">{updatingStatus === submission.id ? "Guardando…" : "Finalizar"}</button>}</> : <span className="auto-approved-label">✓ Aprobación automática</span>}
+                    {canManageAssignment && (submission.status === "approved" || submission.status === "rejected") && submission.assigned_to === currentUserId && <button className="status-action status-action--review" disabled={updatingStatus === submission.id} onClick={() => void updateStatus(submission.id, "in_review")} type="button"><span aria-hidden="true">↺</span>{updatingStatus === submission.id ? "Guardando…" : "Reabrir revisión"}</button>}
+                    {canManageAssignment && (submission.status === "approved" || submission.status === "rejected") && submission.assigned_to === currentUserId && <button className="status-action status-action--complete" disabled={updatingStatus === submission.id} onClick={() => void updateStatus(submission.id, "completed")} type="button"><span aria-hidden="true">✓</span>{updatingStatus === submission.id ? "Guardando…" : "Finalizar"}</button>}
+                    {submission.assigned_to && submission.assigned_to !== currentUserId && <span className="assigned-elsewhere-label">Atendida por {submission.assigned_name ?? "otro usuario"}</span>}</> : <span className="auto-approved-label">✓ Aprobación automática</span>}
                   </span>
                 </div>
                 {expanded === submission.id && (
                   <div className="response-detail-wrap">
+                    {submission.assigned_to && <div className="submission-assignment"><span>●</span><div><small>RESPONSABLE DE LA ATENCIÓN</small><p>{submission.assigned_to === currentUserId ? "Asignada a ti" : submission.assigned_name ?? "Usuario BackOffice"}{submission.assigned_at ? ` · desde ${new Date(submission.assigned_at).toLocaleString("es-GT")}` : ""}</p></div></div>}
                     {submission.observation && <div className="submission-observation"><span>✦</span><div><small>OBSERVACIÓN DE LA REVISIÓN</small><p>{submission.observation}</p></div></div>}
                     <div className="answers-grid response-detail answer-cards">
                       {fields.map((field) => (
@@ -331,7 +361,7 @@ export function FormResponsesPage() {
         </div>
       )}
       {analyzing && <div className="modal-backdrop ai-processing"><div className="ai-processing-card"><div className="ai-processing-orb">✦</div><div><span className="ai-badge">IA EN PROCESO</span><h2>Analizando la respuesta</h2><p>Comparando las respuestas con el contexto y las reglas del formulario<span className="processing-dots">...</span></p></div></div></div>}
-      {reviewAction && <div className="modal-backdrop"><div className="review-modal ai-review-modal"><div className="ai-modal-header"><span className="ai-modal-icon">✦</span><div><span className="ai-badge">OBSERVACIÓN DE LA REVISIÓN</span><h2>{reviewAction.status === 'approved' ? 'Aprobar envío' : 'Rechazar envío'}</h2></div></div><p>Revisa la observación propuesta por la IA. Este texto quedará guardado junto con el formulario.</p><textarea autoFocus value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="Observación" rows={4} /><div className="form-actions"><button className="text-button" onClick={() => { setReviewAction(null); setObservation('') }} type="button">Cancelar</button><button className="primary-button" onClick={async () => { if (await updateStatus(reviewAction.id, reviewAction.status, observation)) setReviewAction(null) }} type="button">Confirmar decisión</button></div></div></div>}
+      {reviewAction && <div className="modal-backdrop"><div className="review-modal ai-review-modal"><div className="ai-modal-header"><span className="ai-modal-icon">✦</span><div><span className="ai-badge">OBSERVACIÓN DE LA REVISIÓN</span><h2>{reviewAction.status === 'approved' ? 'Aprobar envío' : 'Rechazar envío'}</h2></div></div><p>Revisa la observación propuesta por la IA. Este texto quedará guardado junto con el formulario.</p><textarea autoFocus value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="Observación" rows={4} /><div className="form-actions"><button className="text-button" onClick={() => { setReviewAction(null); setObservation('') }} type="button">Cancelar</button><button className={`status-action ${reviewAction.status === 'approved' ? 'status-action--approve' : 'status-action--reject'}`} onClick={async () => { if (await updateStatus(reviewAction.id, reviewAction.status, observation)) setReviewAction(null) }} type="button"><span aria-hidden="true">{reviewAction.status === 'approved' ? '✓' : '×'}</span>Confirmar {reviewAction.status === 'approved' ? 'aprobación' : 'rechazo'}</button></div></div></div>}
       {imagePreview && <div aria-label="Vista previa de fotografía" aria-modal="true" className="modal-backdrop image-preview-backdrop" onMouseDown={() => setImagePreview(null)} role="dialog"><section className="image-preview-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>VISTA PREVIA</small><h2>{imagePreview.title}</h2></div><button aria-label="Cerrar vista previa" onClick={() => setImagePreview(null)} type="button">×</button></header><div className="image-preview-stage"><img alt={imagePreview.title} src={imagePreview.url} /></div><footer><span>Puedes cerrar esta ventana con la tecla Escape.</span><button className="secondary-button" onClick={() => setImagePreview(null)} type="button">Cerrar</button></footer></section></div>}
       {pdfPreview && <div aria-label="Vista previa de documento PDF" aria-modal="true" className="modal-backdrop image-preview-backdrop" onMouseDown={() => setPdfPreview(null)} role="dialog"><section className="image-preview-modal pdf-preview-modal" onMouseDown={(event) => event.stopPropagation()}><header><div><small>DOCUMENTO ADJUNTO</small><h2>{pdfPreview.title}</h2></div><button aria-label="Cerrar vista previa" onClick={() => setPdfPreview(null)} type="button">×</button></header><div className="pdf-preview-stage"><iframe src={pdfPreview.url} title={`Vista previa de ${pdfPreview.title}`} /></div><footer><span>El enlace de visualización es temporal y seguro.</span><div><button className="secondary-button" onClick={() => setPdfPreview(null)} type="button">Cerrar</button><a className="primary-button" href={pdfPreview.downloadUrl}>Descargar PDF</a></div></footer></section></div>}
     </section>

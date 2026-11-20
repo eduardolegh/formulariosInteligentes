@@ -119,7 +119,7 @@ La interfaz publicada en Internet no puede acceder normalmente al Ollama de `127
 
 ## Base de datos y migraciones
 
-Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `034`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
+Las migraciones están en `supabase/migrations` y actualmente abarcan de `001` a `036`. En este proyecto se han aplicado manualmente desde el SQL Editor de Supabase; deben ejecutarse en orden cuando se prepara una base nueva.
 
 Las últimas incorporan:
 
@@ -135,6 +135,8 @@ Las últimas incorporan:
 - `032`: permisos y verificación real de cambios de estado en las respuestas.
 - `033`: alineación del permiso de revisión con la pantalla de respuestas.
 - `034`: observaciones públicas del seguimiento y cola auditable de correos por cambio de estado.
+- `035`: asignación atómica de solicitudes, responsable y tiempo de toma para BackOffice.
+- `036`: corrección del alcance por departamento al asignar solicitudes desde la bandeja.
 
 No se debe ejecutar una migración manualmente y después volver a aplicarla sin revisar previamente el historial del proyecto.
 
@@ -164,6 +166,12 @@ npx supabase functions deploy send-tracking-email --no-verify-jwt
 ```
 
 Consulta la configuración y las pruebas en [Seguimiento público](docs/SEGUIMIENTO_PUBLICO.md).
+
+## Asignación de solicitudes
+
+Las solicitudes que requieren atención siguen el flujo **Ingresado → Asignado → En revisión → Aprobado/Rechazado → Finalizado**. El botón **Asignarme** registra de forma atómica al responsable y evita que dos usuarios BackOffice tomen la misma solicitud. El dashboard muestra solicitudes sin asignar, tiempo promedio para tomarlas y carga real por responsable.
+
+Consulta la instalación y los casos de prueba en [Asignación BackOffice](docs/ASIGNACION_BACKOFFICE.md).
 
 ## Verificación antes de publicar
 

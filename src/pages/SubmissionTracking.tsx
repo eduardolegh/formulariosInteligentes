@@ -5,8 +5,8 @@ import { invokeIntegrationFunction } from '../lib/integrations'
 type HistoryItem = { id: number; previous_status: string | null; new_status: string; changed_at: string; changed_by: string | null; changed_by_name: string }
 type Delivery = { id: string; event_type: string; status: 'pending' | 'processing' | 'succeeded' | 'failed'; attempts: number; http_status: number | null; duration_ms: number | null; request_payload: unknown | null; response_excerpt: string | null; error_message: string | null; last_attempt_at: string | null; completed_at: string | null; created_at: string; integration?: { name?: string } | null }
 
-const statusLabels: Record<string, string> = { submitted: 'Ingresado', in_review: 'En revisión', approved: 'Aprobado', rejected: 'Rechazado', completed: 'Finalizado' }
-const eventLabels: Record<string, string> = { submitted: 'Al recibir el formulario', in_review: 'Al iniciar la revisión', approved: 'Al aprobar', rejected: 'Al rechazar', completed: 'Al finalizar' }
+const statusLabels: Record<string, string> = { submitted: 'Ingresado', assigned: 'Asignado', in_review: 'En revisión', approved: 'Aprobado', rejected: 'Rechazado', completed: 'Finalizado' }
+const eventLabels: Record<string, string> = { submitted: 'Al recibir el formulario', assigned: 'Al asignar responsable', in_review: 'Al iniciar la revisión', approved: 'Al aprobar', rejected: 'Al rechazar', completed: 'Al finalizar' }
 const deliveryLabels: Record<Delivery['status'], string> = { pending: 'Pendiente', processing: 'Procesando', succeeded: 'Ejecutada', failed: 'Fallida' }
 
 export function SubmissionTracking({ submissionId }: { submissionId: string }) {

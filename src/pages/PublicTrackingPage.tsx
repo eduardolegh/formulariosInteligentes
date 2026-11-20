@@ -15,6 +15,7 @@ type ActiveLookup = { code: string | null; token: string | null }
 
 const statusLabels: Record<string, string> = {
   submitted: 'Solicitud recibida',
+  assigned: 'Asignada',
   in_review: 'En revisión',
   approved: 'Aprobada',
   rejected: 'Rechazada',
@@ -23,6 +24,7 @@ const statusLabels: Record<string, string> = {
 
 const statusDescriptions: Record<string, string> = {
   submitted: 'La información fue recibida correctamente y está pendiente de atención.',
+  assigned: 'Un integrante del equipo tomó la solicitud y será responsable de atenderla.',
   in_review: 'El equipo responsable se encuentra revisando la solicitud.',
   approved: 'La solicitud fue aprobada.',
   rejected: 'La solicitud fue rechazada.',

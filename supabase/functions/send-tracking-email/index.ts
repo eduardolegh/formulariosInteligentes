@@ -11,7 +11,7 @@ const escapeHtml = (value: string) => value
   .replaceAll('"', '&quot;').replaceAll("'", '&#039;')
 
 const statusLabels: Record<string, string> = {
-  submitted: 'Solicitud recibida', in_review: 'En revisión', approved: 'Aprobada',
+  submitted: 'Solicitud recibida', assigned: 'Asignada', in_review: 'En revisión', approved: 'Aprobada',
   rejected: 'Rechazada', completed: 'Finalizada',
 }
 

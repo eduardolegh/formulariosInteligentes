@@ -58,13 +58,14 @@ Deno.serve(async (request) => {
     const { data: userData, error: userError } = await caller.auth.getUser()
     if (userError || !userData.user) throw new Error('La sesión no es válida o expiró.')
     requestedBy = userData.user.id
-    const { data: visibleSubmission, error: visibleError } = await caller.from('form_submissions').select('id,form_id,status').eq('id', submission_id).single()
+    const { data: visibleSubmission, error: visibleError } = await caller.from('form_submissions').select('id,form_id,status,assigned_to').eq('id', submission_id).single()
     if (visibleError || !visibleSubmission) throw new Error('No se encontró la respuesta o no tienes permiso para analizarla.')
     submission = visibleSubmission
     admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
     const { data: attentionForm } = await admin.from('forms').select('requires_attention,ai_enabled').eq('id', submission.form_id).single()
     if (attentionForm?.requires_attention === false) throw new Error('Este formulario no requiere atención y no puede analizarse con inteligencia artificial.')
-    if (submission.status !== 'submitted') throw new Error('Solo las respuestas en estado Ingresado pueden analizarse con inteligencia artificial.')
+    if (submission.status !== 'in_review') throw new Error('Solo las respuestas asignadas y en estado En revisión pueden analizarse con inteligencia artificial.')
+    if (visibleSubmission.assigned_to !== requestedBy) throw new Error('Esta respuesta está asignada a otro usuario BackOffice.')
     if (attentionForm?.ai_enabled !== true) throw new Error('Este formulario no tiene habilitado el análisis con inteligencia artificial.')
 
     const [{ data: form }, { data: context }, { data: sections }, { data: answers }] = await Promise.all([

@@ -89,12 +89,13 @@ async function analyzeSubmission(request) {
   try {
     const { caller, user } = await callerFor(request); requestedBy = user.id
     const { submission_id } = await bodyOf(request); if (!submission_id) throw new Error('Falta el identificador de la respuesta.')
-    const { data: visible, error } = await caller.from('form_submissions').select('id,form_id,status').eq('id', submission_id).single()
+    const { data: visible, error } = await caller.from('form_submissions').select('id,form_id,status,assigned_to').eq('id', submission_id).single()
     if (error || !visible) throw new Error('No se encontró la respuesta o no tienes permiso para analizarla.')
     submission = visible
     const { data: attentionForm } = await admin.from('forms').select('requires_attention,ai_enabled').eq('id', submission.form_id).single()
     if (attentionForm?.requires_attention === false) throw new Error('Este formulario no requiere atención y no puede analizarse con inteligencia artificial.')
-    if (submission.status !== 'submitted') throw new Error('Solo las respuestas en estado Ingresado pueden analizarse con inteligencia artificial.')
+    if (submission.status !== 'in_review') throw new Error('Solo las respuestas asignadas y en estado En revisión pueden analizarse con inteligencia artificial.')
+    if (visible.assigned_to !== requestedBy) throw new Error('Esta respuesta está asignada a otro usuario BackOffice.')
     if (attentionForm?.ai_enabled !== true) throw new Error('Este formulario no tiene habilitado el análisis con inteligencia artificial.')
     const [{ data: form }, { data: context }, { data: sections }, { data: answers }] = await Promise.all([
       admin.from('forms').select('name,description').eq('id', submission.form_id).single(),

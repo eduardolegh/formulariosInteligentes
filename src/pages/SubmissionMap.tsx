@@ -43,5 +43,5 @@ function FitSubmissionBounds({ points }: { points: SubmissionMapPoint[] }) {
 }
 
 function statusLabel(status: string) {
-  return ({ submitted: 'Ingresado', in_review: 'En revisión', approved: 'Aprobado', rejected: 'Rechazado', completed: 'Completado' } as Record<string, string>)[status] ?? status
+  return ({ submitted: 'Ingresado', assigned: 'Asignado', in_review: 'En revisión', approved: 'Aprobado', rejected: 'Rechazado', completed: 'Completado' } as Record<string, string>)[status] ?? status
 }

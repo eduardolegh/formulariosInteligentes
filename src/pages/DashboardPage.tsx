@@ -7,7 +7,7 @@ import { SubmissionMap, type SubmissionMapPoint } from './SubmissionMap'
 import { LlmOperationsPanel, type LlmOperationRun } from './LlmOperationsPanel'
 
 type FormRow = { id: string; name: string; status: string }
-type Submission = { id: string; form_id: string; status: string; submitted_at: string; review_started_at: string | null; decided_at: string | null; latitude: number | null; longitude: number | null; location_accuracy_m: number | null; experience_rating: number | null; experience_rated_at: string | null }
+type Submission = { id: string; form_id: string; status: string; submitted_at: string; assigned_to: string | null; assigned_at: string | null; review_started_at: string | null; decided_at: string | null; latitude: number | null; longitude: number | null; location_accuracy_m: number | null; experience_rating: number | null; experience_rated_at: string | null }
 type FormDepartment = { form_id: string; department: string }
 type AiRun = { id: string; submission_id: string; form_id: string; status: 'succeeded' | 'failed'; provider: string; model: string; duration_ms: number; total_tokens: number; estimated_cost_usd: number | null; suggested_status: string | null; human_decision: string | null; started_at: string }
 type Field = { id: string; label: string; field_type: string }
@@ -15,8 +15,8 @@ type Answer = { submission_id: string; field_id: string; value: unknown }
 type AssistantRun = { id: string; status: 'succeeded' | 'failed'; is_supported: boolean; total_tokens: number; estimated_cost_usd: number | null; duration_ms: number; created_at: string }
 type BackofficeActivity = { user_id: string; full_name: string; department: string; submission_id: string | null; action_status: string | null; action_at: string | null }
 
-const statusLabels: Record<string, string> = { submitted: 'Ingresado', in_review: 'En revisión', approved: 'Aprobado', rejected: 'Rechazado', completed: 'Completado' }
-const colors: Record<string, string> = { submitted: '#4d91d9', in_review: '#dfaa43', approved: '#42a37d', rejected: '#d76570', completed: '#7c70c8' }
+const statusLabels: Record<string, string> = { submitted: 'Ingresado', assigned: 'Asignado', in_review: 'En revisión', approved: 'Aprobado', rejected: 'Rechazado', completed: 'Completado' }
+const colors: Record<string, string> = { submitted: '#4d91d9', assigned: '#7663b6', in_review: '#dfaa43', approved: '#42a37d', rejected: '#d76570', completed: '#7c70c8' }
 
 export function DashboardPage() {
   const [forms, setForms] = useState<FormRow[]>([])
@@ -42,7 +42,7 @@ export function DashboardPage() {
       setLoading(true)
       const [formsResult, submissionsResult, departmentsResult, aiResult, assistantResult, backofficeResult, llmResult] = await Promise.all([
         supabase.from('forms').select('id,name,status').order('name'),
-        supabase.from('form_submissions').select('id,form_id,status,submitted_at,review_started_at,decided_at,latitude,longitude,location_accuracy_m,experience_rating,experience_rated_at').order('submitted_at'),
+        supabase.from('form_submissions').select('id,form_id,status,submitted_at,assigned_to,assigned_at,review_started_at,decided_at,latitude,longitude,location_accuracy_m,experience_rating,experience_rated_at').order('submitted_at'),
         supabase.from('form_departments').select('form_id,department'),
         supabase.from('ai_analysis_runs').select('id,submission_id,form_id,status,provider,model,duration_ms,total_tokens,estimated_cost_usd,suggested_status,human_decision,started_at').order('started_at'),
         supabase.from('dashboard_assistant_runs').select('id,status,is_supported,total_tokens,estimated_cost_usd,duration_ms,created_at').order('created_at'),
@@ -103,7 +103,8 @@ export function DashboardPage() {
   const assistantHasCost = filteredAssistant.some((run) => run.estimated_cost_usd != null)
   const decided = filtered.filter((item) => item.status === 'approved' || item.status === 'rejected')
   const approved = filtered.filter((item) => item.status === 'approved').length
-  const pending = filtered.filter((item) => item.status === 'submitted' || item.status === 'in_review').length
+  const pending = filtered.filter((item) => ['submitted', 'assigned', 'in_review'].includes(item.status)).length
+  const unassigned = filtered.filter((item) => item.status === 'submitted' && !item.assigned_to).length
   const averageDecisionHours = average(filtered.filter((item) => item.decided_at).map((item) => (new Date(item.decided_at!).getTime() - new Date(item.submitted_at).getTime()) / 3_600_000))
   const statusCounts = Object.keys(statusLabels).map((key) => ({ key, label: statusLabels[key], value: filtered.filter((item) => item.status === key).length }))
   const maxStatus = Math.max(1, ...statusCounts.map((item) => item.value))
@@ -123,13 +124,13 @@ export function DashboardPage() {
   const formActivity = forms.map((form) => {
     const rows = filtered.filter((item) => item.form_id === form.id)
     const decisions = rows.filter((item) => ['approved', 'rejected'].includes(item.status))
-    return { ...form, total: rows.length, pending: rows.filter((item) => ['submitted', 'in_review'].includes(item.status)).length, approved: rows.filter((item) => item.status === 'approved').length, rejected: rows.filter((item) => item.status === 'rejected').length, rate: decisions.length ? rows.filter((item) => item.status === 'approved').length / decisions.length * 100 : 0 }
+    return { ...form, total: rows.length, pending: rows.filter((item) => ['submitted', 'assigned', 'in_review'].includes(item.status)).length, approved: rows.filter((item) => item.status === 'approved').length, rejected: rows.filter((item) => item.status === 'rejected').length, rate: decisions.length ? rows.filter((item) => item.status === 'approved').length / decisions.length * 100 : 0 }
   }).filter((item) => item.total > 0).sort((a, b) => b.total - a.total)
 
   const departmentActivity = departments.map((name) => {
     const ids = new Set(formDepartments.filter((item) => item.department === name).map((item) => item.form_id))
     const rows = filtered.filter((item) => ids.has(item.form_id))
-    return { name, total: rows.length, pending: rows.filter((item) => ['submitted', 'in_review'].includes(item.status)).length, approved: rows.filter((item) => item.status === 'approved').length, rejected: rows.filter((item) => item.status === 'rejected').length }
+    return { name, total: rows.length, pending: rows.filter((item) => ['submitted', 'assigned', 'in_review'].includes(item.status)).length, approved: rows.filter((item) => item.status === 'approved').length, rejected: rows.filter((item) => item.status === 'rejected').length }
   }).filter((item) => item.total > 0).sort((a, b) => b.pending - a.pending)
 
   const successfulAi = filteredAi.filter((run) => run.status === 'succeeded')
@@ -138,28 +139,68 @@ export function DashboardPage() {
   const ratedSubmissions = filtered.filter((submission) => submission.experience_rating != null)
   const averageExperience = average(ratedSubmissions.map((submission) => submission.experience_rating!))
   const experienceDistribution = [5, 4, 3, 2, 1].map((rating) => ({ rating, count: ratedSubmissions.filter((submission) => submission.experience_rating === rating).length }))
-  const oldPending = filtered.filter((item) => ['submitted', 'in_review'].includes(item.status) && referenceTime - new Date(item.submitted_at).getTime() > 3 * 86_400_000)
+  const oldPending = filtered.filter((item) => ['submitted', 'assigned', 'in_review'].includes(item.status) && referenceTime - new Date(item.submitted_at).getTime() > 3 * 86_400_000)
   const selectedForm = forms.find((item) => item.id === formId)
   const mapPoints: SubmissionMapPoint[] = filtered.filter((item) => item.latitude != null && item.longitude != null).map((item) => ({ id: item.id, latitude: item.latitude!, longitude: item.longitude!, accuracy: item.location_accuracy_m, submittedAt: item.submitted_at, formName: forms.find((form) => form.id === item.form_id)?.name ?? 'Formulario', status: item.status }))
   const backofficePerformance = useMemo(() => {
     const users = new Map<string, { id: string; name: string; department: string }>()
     for (const activity of backofficeActivity) users.set(activity.user_id, { id: activity.user_id, name: activity.full_name, department: activity.department })
-    const relevantActions = backofficeActivity.filter((item) => item.submission_id && item.action_at && filteredIds.has(item.submission_id))
-    const responsibleBySubmission = new Map<string, BackofficeActivity>()
-    for (const action of relevantActions) {
-      const current = responsibleBySubmission.get(action.submission_id!)
-      if (!current || new Date(action.action_at!).getTime() > new Date(current.action_at!).getTime()) responsibleBySubmission.set(action.submission_id!, action)
-    }
     return [...users.values()].map((user) => {
-      const assignedIds = [...responsibleBySubmission.entries()].filter(([, action]) => action.user_id === user.id).map(([submissionId]) => submissionId)
-      const assigned = filtered.filter((item) => assignedIds.includes(item.id))
-      const responseHours = assigned.map((submission) => {
-        const firstAction = relevantActions.filter((action) => action.user_id === user.id && action.submission_id === submission.id).sort((a, b) => new Date(a.action_at!).getTime() - new Date(b.action_at!).getTime())[0]
-        return firstAction ? Math.max(0, (new Date(firstAction.action_at!).getTime() - new Date(submission.submitted_at).getTime()) / 3_600_000) : null
-      }).filter((value): value is number => value != null)
+      const assigned = filtered.filter((item) => item.assigned_to === user.id)
+      const responseHours = assigned.filter((submission) => submission.assigned_at).map((submission) => Math.max(0, (new Date(submission.assigned_at!).getTime() - new Date(submission.submitted_at).getTime()) / 3_600_000))
       return { ...user, total: assigned.length, averageHours: average(responseHours), counts: Object.fromEntries(Object.keys(statusLabels).map((key) => [key, assigned.filter((item) => item.status === key).length])) }
     }).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
-  }, [backofficeActivity, filtered, filteredIds])
+  }, [backofficeActivity, filtered])
+
+  const backofficeStageTimes = useMemo(() => {
+    const submissionById = new Map(filtered.map((item) => [item.id, item]))
+    const activitiesBySubmission = new Map<string, BackofficeActivity[]>()
+    for (const activity of backofficeActivity) {
+      if (!activity.submission_id || !activity.action_status || !activity.action_at || !submissionById.has(activity.submission_id)) continue
+      const current = activitiesBySubmission.get(activity.submission_id) ?? []
+      current.push(activity)
+      activitiesBySubmission.set(activity.submission_id, current)
+    }
+    for (const activities of activitiesBySubmission.values()) activities.sort((a, b) => new Date(a.action_at!).getTime() - new Date(b.action_at!).getTime())
+
+    return backofficePerformance.map((user) => {
+      const samples = { assignment: [] as number[], review: [] as number[], decision: [] as number[], completion: [] as number[], total: [] as number[] }
+      for (const [submissionId, activities] of activitiesBySubmission) {
+        const submission = submissionById.get(submissionId)!
+        activities.forEach((activity, index) => {
+          if (activity.user_id !== user.id) return
+          const actionAt = new Date(activity.action_at!).getTime()
+          const previous = activities.slice(0, index).reverse()
+          let startedAt: number | null = null
+
+          if (activity.action_status === 'assigned') startedAt = new Date(submission.submitted_at).getTime()
+          if (activity.action_status === 'in_review') {
+            const assigned = previous.find((item) => item.action_status === 'assigned')
+            startedAt = assigned?.action_at ? new Date(assigned.action_at).getTime() : null
+          }
+          if (activity.action_status === 'approved' || activity.action_status === 'rejected') {
+            const review = previous.find((item) => item.action_status === 'in_review')
+            startedAt = review?.action_at ? new Date(review.action_at).getTime() : null
+          }
+          if (activity.action_status === 'completed') {
+            const decision = previous.find((item) => item.action_status === 'approved' || item.action_status === 'rejected')
+            startedAt = decision?.action_at ? new Date(decision.action_at).getTime() : null
+          }
+
+          if (startedAt == null || actionAt < startedAt) return
+          const hours = (actionAt - startedAt) / 3_600_000
+          if (activity.action_status === 'assigned') samples.assignment.push(hours)
+          if (activity.action_status === 'in_review') samples.review.push(hours)
+          if (activity.action_status === 'approved' || activity.action_status === 'rejected') samples.decision.push(hours)
+          if (activity.action_status === 'completed') {
+            samples.completion.push(hours)
+            samples.total.push((actionAt - new Date(submission.submitted_at).getTime()) / 3_600_000)
+          }
+        })
+      }
+      return { ...user, samples }
+    })
+  }, [backofficeActivity, backofficePerformance, filtered])
 
   if (loading) return <div className="panel dashboard-loading">Preparando indicadores…</div>
   return <section className="module-page dashboard-page">
@@ -176,6 +217,7 @@ export function DashboardPage() {
     <div className="dashboard-kpis">
       <Metric label="Respuestas" value={filtered.length.toLocaleString('es-GT')} detail="recibidas en el período" tone="blue" />
       <Metric label="Pendientes" value={pending.toLocaleString('es-GT')} detail={oldPending.length ? `${oldPending.length} con más de 3 días` : 'sin casos atrasados'} tone="amber" />
+      <Metric label="Sin asignar" value={unassigned.toLocaleString('es-GT')} detail="aún no tomadas por BackOffice" tone="violet" />
       <Metric label="Aprobación" value={decided.length ? `${Math.round(approved / decided.length * 100)}%` : '—'} detail={`${decided.length} decisiones registradas`} tone="green" />
       <Metric label="Tiempo de decisión" value={formatHours(averageDecisionHours)} detail="desde el ingreso" tone="violet" />
     </div>
@@ -192,9 +234,29 @@ export function DashboardPage() {
       <article className="panel dashboard-panel"><PanelTitle title="Carga por departamento" subtitle="Casos que requieren atención" /><div className="department-list">{departmentActivity.slice(0, 7).map((item) => <button key={item.name} type="button" onClick={() => setDepartment(item.name)}><span><strong>{item.name}</strong><small>{item.total} respuestas</small></span><em>{item.pending} pendientes</em></button>)}{!departmentActivity.length && <Empty text="Sin actividad departamental." />}</div></article>
     </div>
 
-    <article className="panel dashboard-panel backoffice-panel"><div className="backoffice-heading"><PanelTitle title="Desempeño de BackOffice" subtitle="Usuarios activos y respuestas gestionadas en el período" /><small>Responsable: último usuario que movió el estado · Tiempo: ingreso hasta su primera gestión</small></div><div className="backoffice-table"><div className="backoffice-row head"><span>Usuario</span><span>Atendidos</span><span>Tiempo promedio</span><span>Ingresados</span><span>En revisión</span><span>Aprobados</span><span>Rechazados</span><span>Finalizados</span></div>{backofficePerformance.map((item) => <div className="backoffice-row" key={item.id}><span><strong>{item.name}</strong><small>{item.department}</small></span><b>{item.total}</b><span>{item.total ? formatHours(item.averageHours) : '—'}</span><span>{item.counts.submitted}</span><span>{item.counts.in_review}</span><span className="backoffice-approved">{item.counts.approved}</span><span className="backoffice-rejected">{item.counts.rejected}</span><span>{item.counts.completed}</span></div>)}{!backofficePerformance.length && <Empty text="No hay usuarios BackOffice activos." />}</div></article>
+    <article className="panel dashboard-panel backoffice-panel"><div className="backoffice-heading"><PanelTitle title="Desempeño de BackOffice" subtitle="Responsables reales y respuestas gestionadas en el período" /><small>Tiempo promedio: desde el ingreso hasta que el usuario se asignó la solicitud.</small></div><div className="backoffice-table"><div className="backoffice-row head"><span>Usuario</span><span>Asignadas</span><span>Tiempo para tomar</span><span>Asignados</span><span>En revisión</span><span>Aprobados</span><span>Rechazados</span><span>Finalizados</span></div>{backofficePerformance.map((item) => <div className="backoffice-row" key={item.id}><span><strong>{item.name}</strong><small>{item.department}</small></span><b>{item.total}</b><span>{item.total ? formatHours(item.averageHours) : '—'}</span><span>{item.counts.assigned}</span><span>{item.counts.in_review}</span><span className="backoffice-approved">{item.counts.approved}</span><span className="backoffice-rejected">{item.counts.rejected}</span><span>{item.counts.completed}</span></div>)}{!backofficePerformance.length && <Empty text="No hay usuarios BackOffice activos." />}</div></article>
 
-    <article className="panel dashboard-panel attention-panel"><PanelTitle title="Requieren atención" subtitle="Señales que pueden afectar la operación" /><div className="attention-grid"><AlertCard tone={oldPending.length ? 'warning' : 'ok'} icon={oldPending.length ? '!' : '✓'} title={`${oldPending.length} respuestas atrasadas`} text="Pendientes desde hace más de tres días." link={oldPending[0] ? `/formularios/${oldPending[0].form_id}/respuestas?submission=${oldPending[0].id}` : undefined} /><AlertCard tone={filteredAi.some((run) => run.status === 'failed') ? 'danger' : 'ok'} icon={filteredAi.some((run) => run.status === 'failed') ? '×' : '✓'} title={`${filteredAi.filter((run) => run.status === 'failed').length} análisis fallidos`} text="Ejecuciones de inteligencia artificial que deben revisarse." /><AlertCard tone={formActivity.some((item) => item.total >= 3 && item.rejected / item.total > .5) ? 'warning' : 'ok'} icon="↗" title={`${formActivity.filter((item) => item.total >= 3 && item.rejected / item.total > .5).length} formularios con rechazo alto`} text="Más de la mitad de sus respuestas fueron rechazadas." /></div></article>
+    <article className="panel dashboard-panel backoffice-times-panel">
+      <div className="backoffice-times-heading">
+        <PanelTitle title="Tiempos promedio por etapa" subtitle="Duración de cada tramo del proceso por usuario BackOffice" />
+        <small>Solo se incluyen solicitudes que cuentan con los dos estados necesarios para calcular cada tramo.</small>
+      </div>
+      <div className="backoffice-times-table">
+        <div className="backoffice-times-row head"><span>Usuario</span><span>Ingreso → Asignado</span><span>Asignado → Revisión</span><span>Revisión → Decisión</span><span>Decisión → Finalizado</span><span>Tiempo total</span></div>
+        {backofficeStageTimes.map((item) => <div className="backoffice-times-row" key={item.id}>
+          <span><strong>{item.name}</strong><small>{item.department}</small></span>
+          <TimeAverage values={item.samples.assignment} />
+          <TimeAverage values={item.samples.review} />
+          <TimeAverage values={item.samples.decision} />
+          <TimeAverage values={item.samples.completion} />
+          <TimeAverage values={item.samples.total} emphasis />
+        </div>)}
+        {!backofficeStageTimes.length && <Empty text="No hay usuarios BackOffice activos." />}
+      </div>
+      <div className="backoffice-times-legend"><span><i className="assigned" />Tiempo para tomar la solicitud</span><span><i className="review" />Tiempo antes de iniciar la revisión</span><span><i className="decision" />Tiempo para aprobar o rechazar</span><span><i className="completed" />Tiempo para cerrar el proceso</span></div>
+    </article>
+
+    <article className="panel dashboard-panel attention-panel"><PanelTitle title="Requieren atención" subtitle="Señales que pueden afectar la operación" /><div className="attention-grid"><AlertCard tone={unassigned ? 'warning' : 'ok'} icon={unassigned ? '!' : '✓'} title={`${unassigned} respuestas sin asignar`} text="Solicitudes que todavía no tienen un responsable." link={filtered.find((item) => item.status === 'submitted') ? '/bandeja-formularios' : undefined} /><AlertCard tone={oldPending.length ? 'warning' : 'ok'} icon={oldPending.length ? '!' : '✓'} title={`${oldPending.length} respuestas atrasadas`} text="Pendientes desde hace más de tres días." link={oldPending[0] ? `/formularios/${oldPending[0].form_id}/respuestas?submission=${oldPending[0].id}` : undefined} /><AlertCard tone={filteredAi.some((run) => run.status === 'failed') ? 'danger' : 'ok'} icon={filteredAi.some((run) => run.status === 'failed') ? '×' : '✓'} title={`${filteredAi.filter((run) => run.status === 'failed').length} análisis fallidos`} text="Ejecuciones de inteligencia artificial que deben revisarse." /><AlertCard tone={formActivity.some((item) => item.total >= 3 && item.rejected / item.total > .5) ? 'warning' : 'ok'} icon="↗" title={`${formActivity.filter((item) => item.total >= 3 && item.rejected / item.total > .5).length} formularios con rechazo alto`} text="Más de la mitad de sus respuestas fueron rechazadas." /></div></article>
 
     <section className="dashboard-section-heading"><div><p className="eyebrow">INTELIGENCIA ARTIFICIAL</p><h2>Rendimiento y decisiones asistidas</h2></div><small>Las métricas se generan desde la nueva instrumentación.</small></section>
     <div className="dashboard-kpis ai-kpis"><Metric label="Análisis ejecutados" value={filteredAi.length.toString()} detail={`${successfulAi.length} exitosos`} tone="blue" /><Metric label="Duración promedio" value={successfulAi.length ? `${(average(successfulAi.map((run) => run.duration_ms)) / 1000).toFixed(1)} s` : '—'} detail="tiempo de respuesta" tone="violet" /><Metric label="Coincidencia humana" value={comparedAi.length ? `${Math.round(agreement)}%` : '—'} detail={`${comparedAi.length} decisiones comparables`} tone="green" /><Metric label="Consumo de análisis" value={`${filteredAi.reduce((sum, run) => sum + run.total_tokens, 0).toLocaleString('es-GT')} tokens`} detail={filteredAi.some((run) => run.estimated_cost_usd != null) ? `$${filteredAi.reduce((sum, run) => sum + Number(run.estimated_cost_usd ?? 0), 0).toFixed(4)} estimados` : 'configure tarifas para calcular costo'} tone="amber" /></div>
@@ -214,6 +276,7 @@ function Metric({ label, value, detail, tone }: { label: string; value: string; 
 function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) { return <header className="dashboard-panel-title"><div><h2>{title}</h2><p>{subtitle}</p></div></header> }
 function Empty({ text }: { text: string }) { return <div className="dashboard-empty">{text}</div> }
 function AlertCard({ tone, icon, title, text, link }: { tone: string; icon: string; title: string; text: string; link?: string }) { return <div className={`alert-card ${tone}`}><i>{icon}</i><div><strong>{title}</strong><p>{text}</p>{link && <Link to={link}>Revisar ahora →</Link>}</div></div> }
+function TimeAverage({ values, emphasis = false }: { values: number[]; emphasis?: boolean }) { return <span className={emphasis ? 'time-average total' : 'time-average'}><strong>{values.length ? formatHours(average(values)) : '—'}</strong><small>{values.length ? `${values.length} ${values.length === 1 ? 'caso' : 'casos'}` : 'Sin datos'}</small></span> }
 function average(values: number[]) { return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0 }
 function localDateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
 function formatHours(hours: number) { if (!hours) return '—'; if (hours < 1) return `${Math.round(hours * 60)} min`; if (hours < 24) return `${hours.toFixed(1)} h`; return `${(hours / 24).toFixed(1)} días` }
